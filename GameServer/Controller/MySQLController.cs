@@ -1,0 +1,308 @@
+﻿using GameServer.Controller;
+using Google.Protobuf.WellKnownTypes;
+using MySql.Data.MySqlClient;
+using Mysqlx.Session;
+using MySqlX.XDevAPI.Common;
+using System.Diagnostics;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+
+
+internal class MySQLController
+{
+    private static MySQLController instance;
+    public static MySQLController Instance
+    {
+        get
+        {
+            if (instance == null)
+            {
+                if (instance == null)
+                {
+                    instance = new MySQLController();
+                }
+            }
+            return instance;
+        }
+    }
+
+
+    private StringBuilder sBuilder;
+    private MySqlConnection dbconn;
+
+    private string dbIP = "192.168.123.1";
+    //private string dbIP = "192.168.219.100";
+
+    private string connStr;
+
+
+    public MySQLController()
+    {
+        sBuilder = new StringBuilder();
+        var ip = dbIP;
+        var port = "3306";
+        var id = "root";
+        var pwd = "1234";
+        //connStr = string.Format("Server={0};Port={1};Database=Mobility;Uid={2};Pwd={3};charset=utf8;SSL Mode=Required", ip, port, id, pwd);
+        connStr = string.Format("Server={0};Port={1};Database=MyGameDB;Uid={2};Pwd={3};charset=utf8", ip, port, id, pwd);
+        dbconn = new MySqlConnection(connStr);
+    }
+    public void Init()
+    {
+        Console.WriteLine("MysqlController Init Complete");
+        Task.Run(() => dbOpenAsyncTest());
+
+        //비동기실행, 결과값 동기.
+        //사용예시
+        //Task<UserEntity> task = Task.Run(() => UserSelect(638506276349467625));
+
+        //task.ContinueWith((antecedent) =>
+        //{
+        //    // antecedent는 이전 Task<int>의 객체를 가리킵니다.
+        //    UserEntity result = antecedent.Result; // 이전 작업의 결과를 가져옵니다.
+        //    Console.WriteLine($"The result is {result.Userid}");
+        //});
+    }
+    //void형 비동기작업
+    public async Task dbOpenAsyncTest()
+    {
+        await Task.Run(() =>
+        {
+            using (MySqlConnection dbconn = new MySqlConnection(connStr))
+            {
+                try
+                {
+                    dbconn.Open();
+                    dbconn.Close();
+                    Console.WriteLine("DB Connection OK");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
+        });
+    }
+    //int형 비동기작업
+    public async Task<int> dbOpenAsyncTest2()
+    {
+        return await Task.Run(() =>
+        {
+            using (MySqlConnection dbconn = new MySqlConnection(connStr))
+            {
+                try
+                {
+                    dbconn.Open();
+                    dbconn.Close();
+                    return 1;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    // 예외 발생 시 숫자 0을 반환하는 예시
+                    return 0;
+                }
+            }
+        });
+    }
+
+    public async Task<UserEntity> UserSelect(long uid)
+    {
+        var row = new UserEntity();
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync(); // 비동기적으로 연결을 엽니다.
+
+            sBuilder.Clear();
+            sBuilder.AppendLine("SELECT `UserUID`,");
+            sBuilder.AppendLine("    `UserName`,");
+            sBuilder.AppendLine("    `UserID`,");
+            sBuilder.AppendLine("    `UserPW`");
+            sBuilder.AppendLine("FROM `mygamedb`.`usertable`");
+            sBuilder.AppendLine("WHERE UserUID = " + uid);
+
+            try
+            {
+                MySqlCommand command = new MySqlCommand(sBuilder.ToString(), dbconn);
+
+                using (var reader = await command.ExecuteReaderAsync()) // 비동기적으로 데이터를 읽어옵니다.
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        row.UserUID = long.Parse(reader["UserUID"].ToString());
+                        row.UserName = reader["UserName"].ToString();
+                        row.Userid = reader["UserID"].ToString();
+                        row.UserPW = reader["UserPW"].ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        return row;
+    }
+    public async Task<UserEntity> CheckUserIdInDatabase(string userId)
+    {
+        var row = new UserEntity();
+
+        // 매개변수화된 쿼리 작성
+        string query = @"
+        SELECT `UserUID`,
+               `UserName`,
+               `UserID`,
+               `UserPW`
+        FROM `mygamedb`.`usertable`
+        WHERE `UserID` = @UserID
+    ";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync();
+
+            // 명령어에 매개변수화된 쿼리와 연결
+            using (MySqlCommand command = new MySqlCommand(query, dbconn))
+            {
+                // 쿼리의 매개변수로 사용자 아이디 값을 추가
+                command.Parameters.AddWithValue("@UserID", userId);
+
+                try
+                {
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            row.UserUID = long.Parse(reader["UserUID"].ToString());
+                            row.UserName = reader["UserName"].ToString();
+                            row.Userid = reader["UserID"].ToString();
+                            row.UserPW = reader["UserPW"].ToString();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return row;  // 오류가 발생해도 빈 `UserEntity` 객체를 반환합니다.
+                }
+            }
+        }
+
+        return row;  // 존재하지 않을 경우 비어 있는 `UserEntity` 객체를 반환
+    }
+    public async Task<bool> SignUpToDatabase(SignUpInfo signupInfo)
+    {
+        // UserID 중복 여부 확인 쿼리
+        string checkUserIdQuery = "SELECT COUNT(*) FROM usertable WHERE UserID = @UserID";
+        // 새로운 사용자를 삽입하는 쿼리
+        string insertUserQuery = @"
+        INSERT INTO usertable (UserUID, UserName, UserID, UserPW)
+        VALUES (@UserUID, @UserName, @UserID, @UserPW)";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync();
+
+            // UserID 중복 여부를 확인
+            using (MySqlCommand checkCmd = new MySqlCommand(checkUserIdQuery, dbconn))
+            {
+                checkCmd.Parameters.AddWithValue("@UserID", signupInfo.id);
+                int count = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+
+                // UserID가 이미 존재한다면 false를 반환
+                if (count > 0)
+                {
+                    return false;
+                }
+            }
+
+            // UserID가 존재하지 않는다면, 새로운 고유한 UserUID 생성
+            long newUID = DateTime.Now.Ticks;
+
+            // 새로운 사용자를 데이터베이스에 삽입
+            using (MySqlCommand insertCmd = new MySqlCommand(insertUserQuery, dbconn))
+            {
+                insertCmd.Parameters.AddWithValue("@UserUID", newUID);
+                insertCmd.Parameters.AddWithValue("@UserName", signupInfo.name);
+                insertCmd.Parameters.AddWithValue("@UserID", signupInfo.id);
+                insertCmd.Parameters.AddWithValue("@UserPW", signupInfo.pw);
+
+                int affectedRows = await insertCmd.ExecuteNonQueryAsync();
+
+                // 삽입이 성공하여 정확히 하나의 행이 영향을 받았다면 true를 반환
+                return affectedRows == 1;
+            }
+        }
+    }
+    /// <summary>
+    /// uid로 유저가 길드에 가입해있는지 체크
+    /// </summary>
+    /// <param name="guildName"></param>
+    /// <returns></returns>
+    public async Task<bool> CheckUserGuildEnable(string guildName)
+    {
+        // UserID 중복 여부 확인 쿼리
+        string checkGuildNameQuery = "";
+        // 새로운 사용자를 삽입하는 쿼리
+        string insertUserQuery = @"";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync();
+
+            // GuildName 중복 여부를 확인
+            using (MySqlCommand checkCmd = new MySqlCommand(insertUserQuery, dbconn))
+            {
+            }
+
+            // GuildName가 존재하지 않는다면, 새로운 고유한 guildUID 생성
+            long newUID = DateTime.Now.Ticks;
+
+            // 새로운 사용자를 데이터베이스에 삽입
+            using (MySqlCommand insertCmd = new MySqlCommand(insertUserQuery, dbconn))
+            {
+                int affectedRows = await insertCmd.ExecuteNonQueryAsync();
+
+                // 삽입이 성공하여 정확히 하나의 행이 영향을 받았다면 true를 반환
+                return affectedRows == 1;
+            }
+        }
+    }
+    /// <summary>
+    /// 길드생성시 길드이름으로 길드 찾기
+    /// </summary>
+    /// <param name="guildName"></param>
+    /// <returns></returns>
+    public async Task<bool> CheckGuildWithName(string guildName)
+    {
+        // UserID 중복 여부 확인 쿼리
+        string checkGuildNameQuery = "";
+        // 새로운 사용자를 삽입하는 쿼리
+        string insertUserQuery = @"";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync();
+
+            // GuildName 중복 여부를 확인
+            using (MySqlCommand checkCmd = new MySqlCommand(insertUserQuery, dbconn))
+            {
+            }
+
+            // GuildName가 존재하지 않는다면, 새로운 고유한 guildUID 생성
+            long newUID = DateTime.Now.Ticks;
+
+            // 새로운 사용자를 데이터베이스에 삽입
+            using (MySqlCommand insertCmd = new MySqlCommand(insertUserQuery, dbconn))
+            {
+                int affectedRows = await insertCmd.ExecuteNonQueryAsync();
+
+                // 삽입이 성공하여 정확히 하나의 행이 영향을 받았다면 true를 반환
+                return affectedRows == 1;
+            }
+        }
+    }
+}
