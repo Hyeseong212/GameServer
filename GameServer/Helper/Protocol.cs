@@ -37,7 +37,11 @@ public enum GuildProtocol
     ///<summary>
     ///길드 생성 프로토콜
     ///</summary>
-    CreateGuild = 0x03
+    CreateGuild = 0x03,
+    ///<summary>
+    ///길드uid로 길드 검색하는 프로토콜
+    ///</summary>
+    SelectGuildUid = 0x04
 }
 public enum ChatStatus
 {

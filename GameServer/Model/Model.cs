@@ -16,12 +16,14 @@ public class UserEntity
     public string UserName;
     public string Userid;
     public string UserPW;
+    public long guildUID;
     public UserEntity()
     {
         UserUID = long.MinValue;
         UserName = string.Empty;
         Userid = string.Empty;
         UserPW = string.Empty;
+        guildUID = long.MinValue;
     }
 }
 [Serializable]

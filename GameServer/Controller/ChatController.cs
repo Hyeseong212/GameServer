@@ -88,10 +88,6 @@ namespace GameServer.Controller
                 }
                 ClientController.Instance.SendToAllClients(sendData);
             });
-
-
-
-          
         }
         public void WhisperChat(byte[] uidandText)
         {
