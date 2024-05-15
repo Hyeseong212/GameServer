@@ -77,29 +77,6 @@ internal class MySQLController
             }
         });
     }
-    //int형 비동기작업
-    public async Task<int> dbOpenAsyncTest2()
-    {
-        return await Task.Run(() =>
-        {
-            using (MySqlConnection dbconn = new MySqlConnection(connStr))
-            {
-                try
-                {
-                    dbconn.Open();
-                    dbconn.Close();
-                    return 1;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    // 예외 발생 시 숫자 0을 반환하는 예시
-                    return 0;
-                }
-            }
-        });
-    }
-
     public async Task<UserEntity> UserSelect(long uid)
     {
         var row = new UserEntity();
@@ -222,6 +199,7 @@ internal class MySQLController
                 insertCmd.Parameters.AddWithValue("@UserName", signupInfo.name);
                 insertCmd.Parameters.AddWithValue("@UserID", signupInfo.id);
                 insertCmd.Parameters.AddWithValue("@UserPW", signupInfo.pw);
+                insertCmd.Parameters.AddWithValue("@GuildUID", 0);
 
                 int affectedRows = await insertCmd.ExecuteNonQueryAsync();
 
@@ -252,7 +230,7 @@ internal class MySQLController
                 var result = await checkCmd.ExecuteScalarAsync();
 
                 // GuildUID가 NULL이 아니면 해당 값을 반환, NULL이면 long.MinValue 반환
-                if (result != DBNull.Value && result != null)
+                if (result != DBNull.Value && Convert.ToInt64(result) != 0)
                 {
                     return Convert.ToInt64(result);
                 }
@@ -263,9 +241,14 @@ internal class MySQLController
             }
         }
     }
+    /// <summary>
+    /// 길드uid로 길드 이름을 찾기
+    /// </summary>
+    /// <param name="guildUid"></param>
+    /// <returns></returns>
     public async Task<string> SelectGuildNameFromGuildUid(long guildUid)
     {
-        // 길드uid로 길드 이름을 찾는 쿼리
+        // 
         string selectGuildNameQuery = "SELECT Guild_Name FROM mygamedb.guildtable WHERE Guild_uid = @GuildUid";
 
         using (MySqlConnection dbconn = new MySqlConnection(connStr))
@@ -291,6 +274,51 @@ internal class MySQLController
             }
         }
     }
+
+    /// <summary>
+    /// 길드 이름으로 길드 정보를 조회하여 반환
+    /// </summary>
+    /// <param name="guildName"></param>
+    /// <returns></returns>
+    public async Task<List<GuildInfo>> SelectGuildNameFromGuildName(string guildName)
+    {
+        // 길드 이름으로 길드 정보를 조회하는 쿼리
+        string selectGuildNameQuery = @"
+        SELECT Guild_uid, Guild_Name, Guild_crews, Guild_leader 
+        FROM mygamedb.guildtable 
+        WHERE Guild_Name = @GuildName";
+
+        List<GuildInfo> guildInfos = new List<GuildInfo>();
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync();
+
+            // 길드 정보를 조회
+            using (MySqlCommand selectCmd = new MySqlCommand(selectGuildNameQuery, dbconn))
+            {
+                selectCmd.Parameters.AddWithValue("@GuildName", guildName);
+
+                using (var reader = await selectCmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var guildInfo = new GuildInfo
+                        {
+                            guildUid = reader.GetInt64("Guild_uid"),
+                            guildName = reader.GetString("Guild_Name"),
+                            guildCrews = JsonConvert.DeserializeObject<List<GuildCrew>>(reader.GetString("Guild_crews")),
+                            guildLeader = reader.GetInt64("Guild_leader")
+                        };
+
+                        guildInfos.Add(guildInfo);
+                    }
+                }
+            }
+        }
+
+        return guildInfos;
+    }
     /// <summary>
     /// 길드 생성
     /// </summary>
@@ -310,7 +338,8 @@ internal class MySQLController
 
             // 새로운 길드를 생성
             long newGuildUid = DateTime.Now.Ticks;
-            string guildCrewsJson = JsonConvert.SerializeObject(guildCrew);
+            List<GuildCrew> guildCrews = new List<GuildCrew> { guildCrew };
+            string guildCrewsJson = JsonConvert.SerializeObject(guildCrews);
 
             using (MySqlCommand insertCmd = new MySqlCommand(insertGuildQuery, dbconn))
             {

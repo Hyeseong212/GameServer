@@ -128,6 +128,7 @@ internal class LoginController
                 {
                     Console.WriteLine($"{CheckUser.Result.UserName} connected.");
 
+
                     int length = 0x01 + 0x01 + Utils.GetLength(CheckUser.Result.UserUID);
 
                     ClientController.Instance.RegisterUserConnection(CheckUser.Result.UserUID, socket);

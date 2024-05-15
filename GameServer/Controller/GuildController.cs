@@ -1,4 +1,5 @@
 ﻿using GameServer.Controller;
+using Newtonsoft.Json;
 using System.Net.Sockets;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -39,6 +40,8 @@ internal class GuildController
         else if (guildProtocol == GuildProtocol.SelectGuildName)
         {
             //길드이름 받아서 길드이름 조회
+            byte[] guildName = data.Skip(1).ToArray();
+            GuildFindWithName(clientSocket, guildName);
         }
         else if (guildProtocol == GuildProtocol.SelectGuildCrew)
         {
@@ -57,6 +60,26 @@ internal class GuildController
             SelectFromGuildUidToName(clientSocket, guildUID);
         }
     }
+    private void GuildFindWithName(Socket clientSocket, byte[] data)
+    {
+        string guildName = Encoding.UTF8.GetString(data);
+        Task<List<GuildInfo>> CheckUser = MySQLController.Instance.SelectGuildNameFromGuildName(guildName);
+        CheckUser.ContinueWith((antecedent) =>
+        {
+            string jsonguildInfo = JsonConvert.SerializeObject(antecedent.Result);
+            int length = 0x01 + Utils.GetLength(jsonguildInfo);
+
+            var sendData = new Packet();
+
+            sendData.push((byte)Protocol.Guild);
+            sendData.push(length);
+            sendData.push((byte)GuildProtocol.SelectGuildName);
+            sendData.push(jsonguildInfo);
+
+            ClientController.Instance.SendToClient(clientSocket, sendData);
+        });
+    }
+
     private void IsUserGuildEnable(Socket clientsocket, byte[] userUID)
     {
         long uidval = BitConverter.ToInt64(userUID);

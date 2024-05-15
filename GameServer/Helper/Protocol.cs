@@ -41,7 +41,11 @@ public enum GuildProtocol
     ///<summary>
     ///길드uid로 길드 검색하는 프로토콜
     ///</summary>
-    SelectGuildUid = 0x04
+    SelectGuildUid = 0x04,
+    ///<summary>
+    ///길드 가입요청 프로토콜
+    ///</summary>
+    RequestJoinGuild = 0x05
 }
 public enum ChatStatus
 {
