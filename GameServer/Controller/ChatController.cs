@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -45,12 +46,11 @@ namespace GameServer.Controller
             }
             else if (chatstatus == ChatStatus.GUILD)
             {
-                //DB에서 길드를 하나 만들고 해당 길드안에 인원들 USERID를 넣어서 접속중인 인원에게만 메시지 보냄...?
-                //or 길드 접속중인사람이 한명이라도 있다면 채팅 세션을 만들어서 해당 세션에게만 뿌리는게 나은지...?
+                byte[] uidandText = data.Skip(1).ToArray();
+                GuildChat(uidandText);
             }
             else
             {
-
             }
         }
 
@@ -69,16 +69,17 @@ namespace GameServer.Controller
             {
                 string receivedText = Encoding.UTF8.GetString(uidandText, uid.Length, uidandText.Length - uid.Length);
 
-                int length = Encoding.UTF8.GetBytes(CheckUser.Result.UserName).Length + Encoding.UTF8.GetBytes(" : ").Length + (uidandText.Length - uid.Length);
+                int length = 0x01 + Encoding.UTF8.GetBytes(CheckUser.Result.UserName).Length + Encoding.UTF8.GetBytes(" : ").Length + (uidandText.Length - uid.Length);
 
                 var sendData = new Packet();
                 sendData.push((byte)Protocol.Chat);
                 sendData.push(length);
+                sendData.push((byte)ChatStatus.ENTIRE);
                 sendData.push(CheckUser.Result.UserName);
                 sendData.push(" : ");
                 sendData.push(receivedText);
 
-                Console.WriteLine($"{Encoding.UTF8.GetString(sendData.buffer, 5, sendData.position)}");
+                Console.WriteLine($"{Encoding.UTF8.GetString(sendData.buffer, 6, sendData.position)}");
 
                 string str = "";
                 for (int i = 5; i < sendData.position; i++)
@@ -111,27 +112,68 @@ namespace GameServer.Controller
             {
                 string receivedText = Encoding.UTF8.GetString(uidandText, senduid.Length + receivinguid.Length, uidandText.Length - senduid.Length - receivinguid.Length);
 
-                int length = Encoding.UTF8.GetBytes(CheckUser.Result.UserName.ToString()).Length + Encoding.UTF8.GetBytes(" : ").Length + (uidandText.Length - senduid.Length - receivinguid.Length);
+                int length =0x01+ Encoding.UTF8.GetBytes(CheckUser.Result.UserName.ToString()).Length + Encoding.UTF8.GetBytes(" : ").Length + (uidandText.Length - senduid.Length - receivinguid.Length);
 
                 var sendData = new Packet();
                 sendData.push((byte)Protocol.Chat);
                 sendData.push(length);
+                sendData.push((byte)ChatStatus.WHISPER);
                 sendData.push(CheckUser.Result.UserName.ToString());
                 sendData.push(" : ");
                 sendData.push(receivedText);
 
-                string str = "";
-                for (int i = 5; i < sendData.position; i++)
-                {
-                    if (i != sendData.position - 1) str += sendData.buffer[i] + "|";
-                    else str += sendData.buffer[i];
-                }
-                long[] testuid = new long[2];
-                testuid[0] = sendUseruidval;
-                testuid[1] = receivingUseruidval;
-                Console.WriteLine($"{Encoding.UTF8.GetString(sendData.buffer, 5, sendData.position)}");
-                ClientController.Instance.SendToSelectedClients(testuid, sendData);
+                long[] uids = new long[2];
+                uids[0] = sendUseruidval;
+                uids[1] = receivingUseruidval;
+                Console.WriteLine($"{Encoding.UTF8.GetString(sendData.buffer, 6, sendData.position)}");
+                ClientController.Instance.SendToSelectedClients(uids, sendData);
             });
+        }
+        public void GuildChat(byte[] uidandText) 
+        {
+            byte[] sendUseruid = new byte[8];
+            byte[] guilduid = new byte[8];
+            for (int i = 0; i < 8; i++)
+            {
+                sendUseruid[i] = uidandText[i];
+            }
+            for (int i = 8; i < 16; i++)
+            {
+                guilduid[i-8] = uidandText[i];
+            }
+            long sendUseruidval = BitConverter.ToInt64(sendUseruid);
+            long Guilduidval = BitConverter.ToInt64(guilduid);
+            string receivedText = Encoding.UTF8.GetString(uidandText, sendUseruid.Length + guilduid.Length, uidandText.Length - sendUseruid.Length - guilduid.Length);
+
+            List<UserEntity> onlineUsers = GuildController.Instance.GetOnlineGuildMembers(Guilduidval);
+
+            long[] userUids = new long[onlineUsers.Count];
+
+            for(int i = 0; i < onlineUsers.Count ; i++)
+            {
+                userUids[i] = onlineUsers[i].UserUID;
+            }
+
+            Task<UserEntity> CheckUser = MySQLController.Instance.UserSelect(sendUseruidval);
+
+            CheckUser.ContinueWith((antecedent) =>
+            {
+
+                int length = 0x01 + Encoding.UTF8.GetBytes(CheckUser.Result.UserName.ToString()).Length + Encoding.UTF8.GetBytes(" : ").Length + (uidandText.Length - sendUseruid.Length - guilduid.Length); ;
+
+                Packet sendData = new Packet();
+                sendData.push((byte)Protocol.Chat);
+                sendData.push(length);
+                sendData.push((byte)ChatStatus.GUILD);
+                sendData.push(CheckUser.Result.UserName.ToString());
+                sendData.push(" : ");
+                sendData.push(receivedText);
+
+                Console.WriteLine($"{Encoding.UTF8.GetString(sendData.buffer, 6, sendData.position)}");
+
+                ClientController.Instance.SendToSelectedClients(userUids, sendData);
+            });
+
 
 
 

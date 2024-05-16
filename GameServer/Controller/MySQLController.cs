@@ -84,7 +84,8 @@ internal class MySQLController
         SELECT `UserUID`,
                `UserName`,
                `UserID`,
-               `UserPW`
+               `UserPW`,
+               `GuildUID`
         FROM `mygamedb`.`usertable`
         WHERE `UserUID` = @UserUID";
 
@@ -105,6 +106,7 @@ internal class MySQLController
                         row.UserName = reader.GetString("UserName");
                         row.Userid = reader.GetString("UserID");
                         row.UserPW = reader.GetString("UserPW");
+                        row.guildUID = long.Parse(reader["GuildUID"].ToString());
                     }
                 }
             }
@@ -125,7 +127,8 @@ internal class MySQLController
         SELECT `UserUID`,
                `UserName`,
                `UserID`,
-               `UserPW`
+               `UserPW`,
+               `GuildUID`
         FROM `mygamedb`.`usertable`
         WHERE `UserID` = @UserID
     ";
@@ -150,6 +153,7 @@ internal class MySQLController
                             row.UserName = reader["UserName"].ToString();
                             row.Userid = reader["UserID"].ToString();
                             row.UserPW = reader["UserPW"].ToString();
+                            row.guildUID = long.Parse(reader["GuildUID"].ToString());
                         }
                     }
                 }

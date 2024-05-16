@@ -23,7 +23,7 @@ namespace GameServer.Controller
             }
         }
         public ConcurrentQueue<SocketAsyncEventArgs> eventArgsPool = new ConcurrentQueue<SocketAsyncEventArgs>();
-        public ConcurrentDictionary<long, Socket> connectedClients = new ConcurrentDictionary<long, Socket>();
+        public ConcurrentDictionary<UserEntity, Socket> connectedClients = new ConcurrentDictionary<UserEntity, Socket>();
         
         public void Init()
         {
@@ -31,11 +31,11 @@ namespace GameServer.Controller
         }
         public void RegisterUserConnection(long userUID, Socket user)
         {
-            //여기서 DB작업 추가
             Task<UserEntity> CheckUser = MySQLController.Instance.UserSelect(userUID);
             CheckUser.ContinueWith((antecedent) =>
             {
-                connectedClients[userUID] = user;
+                GuildController.Instance.GuildSessionCheck(antecedent.Result);
+                connectedClients[antecedent.Result] = user;
             });
         }
         public void DisconnectUserConnection(long userUID)
@@ -43,10 +43,12 @@ namespace GameServer.Controller
             Task<UserEntity> CheckUser = MySQLController.Instance.UserSelect(userUID);
             CheckUser.ContinueWith((antecedent) =>
             {
+
                 foreach (var kvp in connectedClients)
                 {
-                    if (kvp.Key == userUID)
+                    if (kvp.Key.UserUID == userUID)
                     {
+                        GuildController.Instance.RemoveUserFromGuildSession(antecedent.Result);
                         Console.WriteLine($"{CheckUser.Result.UserName} : disconnected.");
                         connectedClients.TryRemove(kvp.Key, out _);
                         break;
@@ -60,8 +62,8 @@ namespace GameServer.Controller
             {
                 if (kvp.Value == clientSocket)
                 {
-
-                    Console.WriteLine($"Client with UID : {kvp.Key} disconnected.");
+                    GuildController.Instance.RemoveUserFromGuildSession(kvp.Key);
+                    Console.WriteLine($"Client with UID : {kvp.Key.UserUID} disconnected.");
                     connectedClients.TryRemove(kvp.Key, out _);
                     break;
                 }
@@ -92,15 +94,17 @@ namespace GameServer.Controller
 
         public void SendToSelectedClients(long[] users, Packet packet)
         {
-            foreach (long user in users)
+            foreach (long userId in users)
             {
-                if (connectedClients.TryGetValue(user, out Socket clientSocket))
+                // UserEntity에서 UserUID가 userId와 일치하는 것을 찾음
+                UserEntity userEntity = connectedClients.Keys.FirstOrDefault(u => u.UserUID == userId);
+                if (userEntity != null && connectedClients.TryGetValue(userEntity, out Socket clientSocket))
                 {
                     SendToClient(clientSocket, packet);
                 }
                 else
                 {
-                    Console.WriteLine($"Client with UID : {user} not found or disconnected.");
+                    Console.WriteLine($"Client with UID : {userId} not found or disconnected.");
                 }
             }
         }

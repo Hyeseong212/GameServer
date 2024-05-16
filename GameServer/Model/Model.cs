@@ -24,7 +24,7 @@ public class UserEntity
         UserName = string.Empty;
         Userid = string.Empty;
         UserPW = string.Empty;
-        guildUID = long.MinValue;
+        guildUID = 0;
     }
 }
 [Serializable]
@@ -75,5 +75,17 @@ public class GuildCrew
     {
         crewUid = long.MinValue;
         crewName = string.Empty;
+    }
+}
+public class GuildSession
+{
+    public long guildUid;
+    public List<UserEntity> onlineGuildCrews;
+    public List<UserEntity> signupRequests;
+    public GuildSession()
+    {
+        guildUid = long.MinValue;
+        onlineGuildCrews = new List<UserEntity>();
+        signupRequests = new List<UserEntity>();
     }
 }

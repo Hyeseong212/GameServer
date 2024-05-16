@@ -38,7 +38,7 @@ internal class LoginController
         }
         else if (loginRequestType == LoginRequestType.LoginRequest)
         {
-            DecodingIDPWPacket(realData, clientSocket);
+            Login(realData, clientSocket);
         }
         else if(loginRequestType == LoginRequestType.LogoutRequest)
         {
@@ -109,7 +109,7 @@ internal class LoginController
 
         ClientController.Instance.DisconnectUserConnection(uidval);
     }
-    private void DecodingIDPWPacket(byte[] dataPacket, Socket socket)
+    private void Login(byte[] dataPacket, Socket socket)
     {
         byte[] NewdataPacket = new byte[dataPacket.Length - 1];
         for(int i = 0; i < NewdataPacket.Length; i++) 
@@ -128,8 +128,9 @@ internal class LoginController
                 {
                     Console.WriteLine($"{CheckUser.Result.UserName} connected.");
 
+                    string strUserEntity = JsonConvert.SerializeObject(antecedent.Result);
 
-                    int length = 0x01 + 0x01 + Utils.GetLength(CheckUser.Result.UserUID);
+                    int length = 0x01 + 0x01 + Utils.GetLength(strUserEntity);
 
                     ClientController.Instance.RegisterUserConnection(CheckUser.Result.UserUID, socket);
 
@@ -138,7 +139,7 @@ internal class LoginController
                     packet.push(length);
                     packet.push((byte)LoginRequestType.LoginRequest);
                     packet.push((byte)ResponseType.Success);
-                    packet.push(CheckUser.Result.UserUID);
+                    packet.push(strUserEntity);
 
                     ClientController.Instance.SendToClient(socket, packet);
                 }

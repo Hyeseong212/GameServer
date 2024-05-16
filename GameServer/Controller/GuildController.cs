@@ -1,5 +1,6 @@
 ﻿using GameServer.Controller;
 using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -21,6 +22,8 @@ internal class GuildController
             return instance;
         }
     }
+
+    public ConcurrentDictionary<long, GuildSession> GuildSessions = new ConcurrentDictionary<long, GuildSession>();
 
     public void Init()
     {
@@ -174,5 +177,96 @@ internal class GuildController
                 ClientController.Instance.SendToClient(clientSocket, packet);
             });
         });
+    }
+    public void GuildSessionCheck(UserEntity user)
+    {
+        if (user == null)
+        {
+            throw new ArgumentNullException(nameof(user));
+        }
+
+        // guildUID가 0인 경우 처리
+        if (user.guildUID == 0)
+        {
+            Console.WriteLine("User is not part of any guild.");
+            return;
+        }
+
+        // 해당 guildUID에 대한 GuildSession을 가져오거나 새로운 세션을 생성
+        GuildSessions.AddOrUpdate(user.guildUID,
+            (key) =>
+            {
+                // 새 세션 생성
+                var newSession = new GuildSession
+                {
+                    guildUid = user.guildUID
+                };
+                newSession.onlineGuildCrews.Add(user);
+                return newSession;
+            },
+            (key, existingSession) =>
+            {
+                // 기존 세션에 유저 추가
+                if (!existingSession.onlineGuildCrews.Contains(user))
+                {
+                    existingSession.onlineGuildCrews.Add(user);
+                }
+                return existingSession;
+            });
+
+        Console.WriteLine($"User {user.UserName} added to guild session with UID: {user.guildUID}");
+    }
+    public void RemoveUserFromGuildSession(UserEntity user)
+    {
+        if (user == null)
+        {
+            throw new ArgumentNullException(nameof(user));
+        }
+
+        // guildUID가 0인 경우 처리
+        if (user.guildUID == 0)
+        {
+            Console.WriteLine("User is not part of any guild.");
+            return;
+        }
+
+        // 해당 guildUID에 대한 GuildSession을 가져옴
+        if (GuildSessions.TryGetValue(user.guildUID, out GuildSession existingSession))
+        {
+            // 기존 세션에서 유저 제거
+            var userToRemove = existingSession.onlineGuildCrews.FirstOrDefault(u => u.UserUID == user.UserUID);
+            if (userToRemove != null)
+            {
+                existingSession.onlineGuildCrews.Remove(userToRemove);
+                Console.WriteLine($"User {user.UserName} removed from guild session with UID: {user.guildUID}");
+            }
+            else
+            {
+                Console.WriteLine($"User {user.UserName} not found in guild session with UID: {user.guildUID}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Guild session with UID: {user.guildUID} not found.");
+        }
+    }
+    public List<UserEntity> GetOnlineGuildMembers(long guildUID)
+    {
+        if (guildUID == 0)
+        {
+            Console.WriteLine("Invalid guild UID.");
+            return new List<UserEntity>();
+        }
+
+        // 해당 guildUID에 대한 GuildSession을 가져옴
+        if (GuildSessions.TryGetValue(guildUID, out GuildSession existingSession))
+        {
+            return new List<UserEntity>(existingSession.onlineGuildCrews);
+        }
+        else
+        {
+            Console.WriteLine($"Guild session with UID: {guildUID} not found.");
+            return new List<UserEntity>();
+        }
     }
 }
