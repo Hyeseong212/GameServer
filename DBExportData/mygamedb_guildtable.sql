@@ -16,32 +16,30 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `usertable`
+-- Table structure for table `guildtable`
 --
 
-DROP TABLE IF EXISTS `usertable`;
+DROP TABLE IF EXISTS `guildtable`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `usertable` (
-  `UserUID` bigint NOT NULL,
-  `UserName` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `UserID` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `UserPW` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `GuildUID` bigint DEFAULT NULL,
-  PRIMARY KEY (`UserUID`),
-  UNIQUE KEY `UserUID` (`UserUID`),
-  KEY `idx_userid` (`UserID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+CREATE TABLE `guildtable` (
+  `Guild_uid` bigint NOT NULL,
+  `Guild_Name` varchar(45) DEFAULT NULL,
+  `Guild_crews` mediumtext,
+  `Guild_leader` bigint DEFAULT NULL,
+  PRIMARY KEY (`Guild_uid`),
+  UNIQUE KEY `Guild_uid_UNIQUE` (`Guild_uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `usertable`
+-- Dumping data for table `guildtable`
 --
 
-LOCK TABLES `usertable` WRITE;
-/*!40000 ALTER TABLE `usertable` DISABLE KEYS */;
-INSERT INTO `usertable` VALUES (638506276349467624,'홍길동','netrohong','Sjh011009!',638514040634328558),(638506276349467625,'서혜성','netrogold','Sjh011009!',638514040634328558),(638509662287620699,'123','123','123',638514040634328558),(638509662749372671,'서재홍','netrosjh','Sjh011009!',0),(638509663228088539,'장두','Rbiotech','1507',638515000213264767),(638509666362017807,'새로운사람','new','new',0);
-/*!40000 ALTER TABLE `usertable` ENABLE KEYS */;
+LOCK TABLES `guildtable` WRITE;
+/*!40000 ALTER TABLE `guildtable` DISABLE KEYS */;
+INSERT INTO `guildtable` VALUES (638514038234632057,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"}]',638506276349467625),(638514040634328558,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"}]',638506276349467625),(638515000213264767,'525','[{\"crewUid\":638509663228088539,\"crewName\":\"장두\"}]',638509663228088539);
+/*!40000 ALTER TABLE `guildtable` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
