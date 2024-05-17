@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.36, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.32, for Win64 (x86_64)
 --
--- Host: 192.168.219.100    Database: mygamedb
+-- Host: 192.168.123.1    Database: mygamedb
 -- ------------------------------------------------------
--- Server version	8.0.37
+-- Server version	5.7.41-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -23,13 +23,14 @@ DROP TABLE IF EXISTS `guildtable`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `guildtable` (
-  `Guild_uid` bigint NOT NULL,
-  `Guild_Name` varchar(45) DEFAULT NULL,
-  `Guild_crews` mediumtext,
-  `Guild_leader` bigint DEFAULT NULL,
+  `Guild_uid` bigint(20) NOT NULL,
+  `Guild_Name` varchar(45) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `Guild_crews` mediumtext COLLATE utf8_unicode_ci,
+  `Guild_leader` bigint(20) DEFAULT NULL,
+  `Guild_JoinRequestUser` mediumtext COLLATE utf8_unicode_ci,
   PRIMARY KEY (`Guild_uid`),
   UNIQUE KEY `Guild_uid_UNIQUE` (`Guild_uid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -38,7 +39,7 @@ CREATE TABLE `guildtable` (
 
 LOCK TABLES `guildtable` WRITE;
 /*!40000 ALTER TABLE `guildtable` DISABLE KEYS */;
-INSERT INTO `guildtable` VALUES (638514038234632057,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"}]',638506276349467625),(638514040634328558,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"}]',638506276349467625),(638515000213264767,'525','[{\"crewUid\":638509663228088539,\"crewName\":\"장두\"}]',638509663228088539);
+INSERT INTO `guildtable` VALUES (638514038234632057,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"}]',638506276349467625,'[638509662749372671]'),(638515000213264767,'525','[{\"crewUid\":638509663228088539,\"crewName\":\"장두\"}]',638509663228088539,NULL);
 /*!40000 ALTER TABLE `guildtable` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -51,4 +52,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-05-17  7:49:43
+-- Dump completed on 2024-05-17 16:16:01
