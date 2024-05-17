@@ -58,12 +58,14 @@ public class GuildInfo
     public string guildName;
     public List<GuildCrew> guildCrews;
     public long guildLeader;
+    public List<long> guildRequest;
     public GuildInfo()
     {
         guildUid = long.MinValue;
         guildName = string.Empty;
         guildCrews = new List<GuildCrew>();
         guildLeader = long.MinValue;
+        guildRequest = new List<long>();
     }
 }
 [Serializable]

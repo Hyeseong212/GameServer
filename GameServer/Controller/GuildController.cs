@@ -3,8 +3,17 @@ using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
+
+public class GuildUpdate : CThread
+{
+    // 클라이언트에게 보내거나 고속 계산이 필요할때 가져다 쓰자.
+    protected override void ThreadUpdate()
+    {
+        Console.WriteLine($"{ThreadName} 스레드가 오버라이드되어 동작 중입니다.");
+        Thread.Sleep(60 * 1000);
+    }
+}
 internal class GuildController
 {
     private static GuildController instance;
@@ -61,6 +70,12 @@ internal class GuildController
             //길드UID 받아서 길드이름 조회
             byte[] guildUID = data.Skip(1).ToArray();
             SelectFromGuildUidToName(clientSocket, guildUID);
+        }
+        else if (guildProtocol == GuildProtocol.RequestJoinGuild)
+        {
+            //길드UID 받아서 길드이름 조회
+            byte[] uSerUid = data.Skip(1).ToArray();
+            RequestJoinGuild(clientSocket, uSerUid);
         }
     }
     private void GuildFindWithName(Socket clientSocket, byte[] data)
@@ -178,43 +193,76 @@ internal class GuildController
             });
         });
     }
-    public void GuildSessionCheck(UserEntity user)
+    private void CreateGuildSession(long guildUID)
+    {
+        var newSession = new GuildSession
+        {
+            guildUid = guildUID
+        };
+
+        // 길드 세션을 GuildSessions 딕셔너리에 추가
+        GuildSessions[guildUID] = newSession;
+
+        Task<GuildInfo> SelectGuildInfo = MySQLController.Instance.SelectGuildInfo(guildUID);
+        SelectGuildInfo.ContinueWith((antecedent) =>
+        {
+            for (int i = 0; i < antecedent.Result.guildRequest.Count; i++)//DB에서 가입요청들어온 uid의 갯수만큼
+            {
+                Task<UserEntity> SelectUserInfo = MySQLController.Instance.UserSelect(antecedent.Result.guildRequest[i]);//그uid로 유저 정보찾기
+                SelectUserInfo.ContinueWith((antecedent02) =>
+                {
+                    GuildSessions[guildUID].signupRequests.Add(antecedent02.Result);//그유저정보 가입 요청에넣기
+                });
+            }
+        });
+
+        // 길드 세션이 만들어질 때 메시지 출력
+        Console.WriteLine($"New guild session created with UID: {guildUID}");
+    }
+    private void DestroyGuildSession(long guildUID)
+    {
+        if (guildUID == 0)
+        {
+            Console.WriteLine("Invalid guild UID.");
+            return;
+        }
+
+        // GuildSessions 딕셔너리에서 해당 guildUID의 세션 제거
+        if (GuildSessions.TryRemove(guildUID, out _))
+        {
+            Console.WriteLine($"Guild session with UID: {guildUID} has been destroyed.");
+        }
+        else
+        {
+            Console.WriteLine($"Guild session with UID: {guildUID} not found.");
+        }
+    }
+    public void AddUserToGuildSession(UserEntity user)
     {
         if (user == null)
         {
             throw new ArgumentNullException(nameof(user));
         }
 
-        // guildUID가 0인 경우 처리
-        if (user.guildUID == 0)
+        if (!CheckGuildSession(user.guildUID, out GuildSession guildSession))
         {
-            Console.WriteLine("User is not part of any guild.");
-            return;
+            // 세션이 없으면 새로 생성
+            CreateGuildSession(user.guildUID);
+
+            // 생성한 세션을 다시 체크
+            if (!CheckGuildSession(user.guildUID, out guildSession))
+            {
+                Console.WriteLine("Failed to create guild session.");
+                return;
+            }
         }
 
-        // 해당 guildUID에 대한 GuildSession을 가져오거나 새로운 세션을 생성
-        GuildSessions.AddOrUpdate(user.guildUID,
-            (key) =>
-            {
-                // 새 세션 생성
-                var newSession = new GuildSession
-                {
-                    guildUid = user.guildUID
-                };
-                newSession.onlineGuildCrews.Add(user);
-                return newSession;
-            },
-            (key, existingSession) =>
-            {
-                // 기존 세션에 유저 추가
-                if (!existingSession.onlineGuildCrews.Contains(user))
-                {
-                    existingSession.onlineGuildCrews.Add(user);
-                }
-                return existingSession;
-            });
-
-        Console.WriteLine($"User {user.UserName} added to guild session with UID: {user.guildUID}");
+        // 기존 세션에 유저 추가
+        if (!guildSession.onlineGuildCrews.Contains(user))
+        {
+            guildSession.onlineGuildCrews.Add(user);
+            Console.WriteLine($"User {user.UserName} added to guild session with UID: {user.guildUID}");
+        }
     }
     public void RemoveUserFromGuildSession(UserEntity user)
     {
@@ -238,6 +286,10 @@ internal class GuildController
             if (userToRemove != null)
             {
                 existingSession.onlineGuildCrews.Remove(userToRemove);
+                if(existingSession.onlineGuildCrews.Count == 0)
+                {
+                    DestroyGuildSession(user.guildUID);
+                }
                 Console.WriteLine($"User {user.UserName} removed from guild session with UID: {user.guildUID}");
             }
             else
@@ -267,6 +319,61 @@ internal class GuildController
         {
             Console.WriteLine($"Guild session with UID: {guildUID} not found.");
             return new List<UserEntity>();
+        }
+    }
+    private void RequestJoinGuild(Socket clientSocket, byte[] data)
+    {
+        byte[] sendUseruid = new byte[8];
+        byte[] guilduid = new byte[8];
+        for (int i = 0; i < 8; i++)
+        {
+            sendUseruid[i] = data[i];
+        }
+        for (int i = 8; i < 16; i++)
+        {
+            guilduid[i - 8] = data[i];
+        }
+        long sendUseruidval = BitConverter.ToInt64(sendUseruid);
+        long guildUIDval = BitConverter.ToInt64(guilduid);
+
+        //그전에 MysqlDB바꾸어야됨
+        Task.Run(() => MySQLController.Instance.JoinGuildRequest(guildUIDval, sendUseruidval));
+
+        Task<UserEntity> checkUser = MySQLController.Instance.UserSelect(sendUseruidval);
+        checkUser.ContinueWith(antecedent =>
+        {
+            GuildSession guildSession = new GuildSession();
+            if (CheckGuildSession(guildUIDval, out guildSession))//길드세션있는지 확인
+            {
+                guildSession.signupRequests.Add(antecedent.Result);
+            }
+            else if (!CheckGuildSession(guildUIDval, out guildSession))
+            {
+                Console.WriteLine("this guild Session is Not Online");
+            }
+        });
+    }
+
+    private bool CheckGuildSession(long guildUID, out GuildSession guildSession)
+    {
+        // 길드 UID가 유효하지 않은 경우 처리
+        guildSession = new GuildSession();
+        if (guildUID == 0)
+        {
+            //Console.WriteLine("Invalid guild UID.");
+            return false;
+        }
+
+        // 해당 guildUID에 대한 GuildSession을 가져옴
+        if (GuildSessions.TryGetValue(guildUID, out GuildSession findedGuildSession))
+        {
+            guildSession = findedGuildSession;
+            return true;
+        }
+        else
+        {
+            //Console.WriteLine($"Guild session with UID: {guildUID} not found.");
+            return false;
         }
     }
 }

@@ -34,7 +34,10 @@ namespace GameServer.Controller
             Task<UserEntity> CheckUser = MySQLController.Instance.UserSelect(userUID);
             CheckUser.ContinueWith((antecedent) =>
             {
-                GuildController.Instance.GuildSessionCheck(antecedent.Result);
+                if(antecedent.Result.guildUID != 0) 
+                {
+                    GuildController.Instance.AddUserToGuildSession(antecedent.Result);
+                }
                 connectedClients[antecedent.Result] = user;
             });
         }

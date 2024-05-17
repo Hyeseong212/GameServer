@@ -401,4 +401,128 @@ internal class MySQLController
             }
         }
     }
+    public async Task<bool> JoinGuildRequest(long guildUID, long requestedUserUid)
+    {
+        bool result = false;
+        string selectQuery = @"
+        SELECT `Guild_JoinRequestUser`
+        FROM `guildtable`
+        WHERE `Guild_uid` = @GuildUID";
+
+        string updateQuery = @"
+        UPDATE `guildtable`
+        SET `Guild_JoinRequestUser` = @Guild_JoinRequestUser
+        WHERE `Guild_uid` = @GuildUID";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync(); // 비동기적으로 연결을 엽니다.
+
+            try
+            {
+                // 길드의 현재 JoinRequest 목록 가져오기
+                MySqlCommand selectCommand = new MySqlCommand(selectQuery, dbconn);
+                selectCommand.Parameters.AddWithValue("@GuildUID", guildUID);
+
+                List<long> joinRequests = new List<long>();
+                using (var reader = await selectCommand.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        // Guild_JoinRequestUser 컬럼이 NULL인 경우 처리
+                        if (reader.IsDBNull(reader.GetOrdinal("Guild_JoinRequestUser")))
+                        {
+                            joinRequests = new List<long>();
+                        }
+                        else
+                        {
+                            string jsonJoinRequests = reader.GetString("Guild_JoinRequestUser");
+                            if (!string.IsNullOrEmpty(jsonJoinRequests))
+                            {
+                                joinRequests = JsonConvert.DeserializeObject<List<long>>(jsonJoinRequests);
+                            }
+                        }
+                    }
+                }
+
+                // JoinRequest 목록에 새로운 UserUID 추가
+                if (!joinRequests.Contains(requestedUserUid))
+                {
+                    joinRequests.Add(requestedUserUid);
+                }
+
+                // JSON 형식으로 직렬화
+                string updatedJsonJoinRequests = JsonConvert.SerializeObject(joinRequests);
+
+                // 업데이트 쿼리 실행
+                MySqlCommand updateCommand = new MySqlCommand(updateQuery, dbconn);
+                updateCommand.Parameters.AddWithValue("@GuildUID", guildUID);
+                updateCommand.Parameters.AddWithValue("@Guild_JoinRequestUser", updatedJsonJoinRequests);
+
+                int rowsAffected = await updateCommand.ExecuteNonQueryAsync();
+                result = rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                // 로그를 기록하거나 추가적인 예외 처리를 여기에 작성할 수 있습니다.
+            }
+        }
+
+        return result;
+    }
+    public async Task<GuildInfo> SelectGuildInfo(long guildUID)
+    {
+        var guildInfo = new GuildInfo();
+        string query = @"
+        SELECT `Guild_uid`,
+               `Guild_Name`,
+               `Guild_crews`,
+               `Guild_leader`,
+               `Guild_JoinRequestUser`
+        FROM `guildtable`
+        WHERE `Guild_uid` = @GuildUID";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync(); // 비동기적으로 연결을 엽니다.
+
+            try
+            {
+                MySqlCommand command = new MySqlCommand(query, dbconn);
+                command.Parameters.AddWithValue("@GuildUID", guildUID);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        guildInfo.guildUid = reader.GetInt64("Guild_uid");
+                        guildInfo.guildName = reader.GetString("Guild_Name");
+
+                        // Guild_crews 역직렬화
+                        string crewsJson = reader.GetString("Guild_crews");
+                        if (!string.IsNullOrEmpty(crewsJson))
+                        {
+                            guildInfo.guildCrews = JsonConvert.DeserializeObject<List<GuildCrew>>(crewsJson);
+                        }
+
+                        guildInfo.guildLeader = reader.GetInt64("Guild_leader");
+
+                        // Guild_JoinRequestUser 역직렬화
+                        string requestsJson = reader["Guild_JoinRequestUser"] as string;
+                        if (!string.IsNullOrEmpty(requestsJson))
+                        {
+                            guildInfo.guildRequest = JsonConvert.DeserializeObject<List<long>>(requestsJson);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                // 로그를 기록하거나 추가적인 예외 처리를 여기에 작성할 수 있습니다.
+            }
+        }
+        return guildInfo;
+    }
 }
