@@ -29,7 +29,7 @@ CREATE TABLE `guildtable` (
   `Guild_leader` bigint DEFAULT NULL,
   PRIMARY KEY (`Guild_uid`),
   UNIQUE KEY `Guild_uid_UNIQUE` (`Guild_uid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
