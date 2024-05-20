@@ -42,14 +42,7 @@ internal class GuildController
     {
         GuildProtocol guildProtocol = (GuildProtocol)data[0];
 
-        if (guildProtocol == GuildProtocol.IsUserGuildEnable)
-        {
-            //현재 유저가 길드 가입했는지 확인
-            byte[] userUID = data.Skip(1).ToArray();
-            IsUserGuildEnable(clientSocket, userUID);
-
-        }
-        else if (guildProtocol == GuildProtocol.SelectGuildName)
+        if (guildProtocol == GuildProtocol.SelectGuildName)
         {
             //길드이름 받아서 길드이름 조회
             byte[] guildName = data.Skip(1).ToArray();
@@ -124,18 +117,20 @@ internal class GuildController
         {
             long uidval = BitConverter.ToInt64(guildUID);
 
-            Task<string> CheckGuildName = MySQLController.Instance.SelectGuildNameFromGuildUid(uidval);
+            Task<GuildInfo> CheckGuildName = MySQLController.Instance.SelectGuildInfoFromGuildUid(uidval);
 
             CheckGuildName.ContinueWith((antecedent) =>
             {
-                int length = 0x01 + Utils.GetLength(antecedent.Result);
+                string jsonguildInfo = JsonConvert.SerializeObject(antecedent.Result);
+
+                int length = 0x01 + Utils.GetLength(jsonguildInfo);
 
                 var sendData = new Packet();
 
-                sendData.push((byte)Protocol.Guild);
+                sendData.push((byte)Protocol.Guild);    
                 sendData.push(length);
                 sendData.push((byte)GuildProtocol.SelectGuildUid);
-                sendData.push(antecedent.Result);
+                sendData.push(jsonguildInfo);
 
                 ClientController.Instance.SendToClient(clientsocket, sendData);
             });
@@ -208,11 +203,7 @@ internal class GuildController
         {
             for (int i = 0; i < antecedent.Result.guildRequest.Count; i++)//DB에서 가입요청들어온 uid의 갯수만큼
             {
-                Task<UserEntity> SelectUserInfo = MySQLController.Instance.UserSelect(antecedent.Result.guildRequest[i]);//그uid로 유저 정보찾기
-                SelectUserInfo.ContinueWith((antecedent02) =>
-                {
-                    GuildSessions[guildUID].signupRequests.Add(antecedent02.Result);//그유저정보 가입 요청에넣기
-                });
+                GuildSessions[guildUID].signupRequests.Add(antecedent.Result.guildRequest[i]);//그uid로 유저 정보찾기
             }
         });
 
@@ -337,11 +328,12 @@ internal class GuildController
         long guildUIDval = BitConverter.ToInt64(guilduid);
 
         //그전에 MysqlDB바꾸어야됨
-        Task.Run(() => MySQLController.Instance.JoinGuildRequest(guildUIDval, sendUseruidval));
 
         Task<UserEntity> checkUser = MySQLController.Instance.UserSelect(sendUseruidval);
         checkUser.ContinueWith(antecedent =>
         {
+            Task.Run(() => MySQLController.Instance.JoinGuildRequest(guildUIDval, antecedent.Result));
+
             GuildSession guildSession = new GuildSession();
             if (CheckGuildSession(guildUIDval, out guildSession))//길드세션있는지 확인
             {
