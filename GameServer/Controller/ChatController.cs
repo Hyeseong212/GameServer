@@ -173,10 +173,6 @@ namespace GameServer.Controller
 
                 ClientController.Instance.SendToSelectedClients(userUids, sendData);
             });
-
-
-
-
         }
     }
 }

@@ -40,7 +40,7 @@ internal class LoginController
         {
             Login(realData, clientSocket);
         }
-        else if(loginRequestType == LoginRequestType.LogoutRequest)
+        else if (loginRequestType == LoginRequestType.LogoutRequest)
         {
             //로그아웃 작업
             Logout(realData, clientSocket);
@@ -49,13 +49,13 @@ internal class LoginController
         {
             //회원 삭제 작업
         }
-        else if(loginRequestType == LoginRequestType.UpdateRequest)
+        else if (loginRequestType == LoginRequestType.UpdateRequest)
         {
             //회원정보 수정 작업
         }
     }
-    private void SignUp(byte[] dataPacket , Socket clientSocket)
-    { 
+    private void SignUp(byte[] dataPacket, Socket clientSocket)
+    {
         byte[] NewdataPacket = new byte[dataPacket.Length - 1];
         for (int i = 0; i < NewdataPacket.Length; i++)
         {
@@ -97,7 +97,7 @@ internal class LoginController
     {
         long uidval = BitConverter.ToInt64(uid, 1);
 
-        int length = 0x01+ 0x01;
+        int length = 0x01 + 0x01;
 
         Packet packet = new Packet();
         packet.push((byte)Protocol.Login);
@@ -112,17 +112,18 @@ internal class LoginController
     private void Login(byte[] dataPacket, Socket socket)
     {
         byte[] NewdataPacket = new byte[dataPacket.Length - 1];
-        for(int i = 0; i < NewdataPacket.Length; i++) 
+        for (int i = 0; i < NewdataPacket.Length; i++)
         {
             NewdataPacket[i] = (byte)dataPacket[i + 1];
         }
         string stridAndPW = Encoding.UTF8.GetString(NewdataPacket);
         LoginInfo idAndPW = JsonConvert.DeserializeObject<LoginInfo>(stridAndPW);
-        
+
         Task<UserEntity> CheckUser = MySQLController.Instance.CheckUserIdInDatabase(idAndPW.ID);
         CheckUser.ContinueWith((antecedent) =>
         {
-            if(antecedent.Result.Userid == idAndPW.ID)
+
+            if (antecedent.Result.Userid == idAndPW.ID)
             {
                 if (antecedent.Result.UserPW == idAndPW.PW)
                 {

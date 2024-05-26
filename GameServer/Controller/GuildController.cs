@@ -1,8 +1,10 @@
 ﻿using GameServer.Controller;
+using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 public class GuildUpdate : CThread
@@ -70,6 +72,62 @@ internal class GuildController
             byte[] uSerUid = data.Skip(1).ToArray();
             RequestJoinGuild(clientSocket, uSerUid);
         }
+        else if (guildProtocol == GuildProtocol.RequestJoinOK)
+        {
+            //길드UID 받아서 길드이름 조회
+            byte[] UserUid = data.Skip(1).ToArray();
+            UserRequestOK(clientSocket, UserUid);
+        }
+    }
+    private void UserRequestOK(Socket clientSocket, byte[] userUidbyte)
+    {
+        long userUID = BitConverter.ToInt64(userUidbyte, 0);
+        long GuildUID = BitConverter.ToInt64(userUidbyte, 8);
+
+        Task<UserEntity> CheckUser = MySQLController.Instance.UserSelect(userUID);
+
+        CheckUser.ContinueWith((antecedent01) =>
+        {
+            //UserUpdate해서 길드 정보넣기
+            antecedent01.Result.guildUID = GuildUID;
+            Task.Run(() => MySQLController.Instance.UpdateUserInfo(antecedent01.Result.UserUID, antecedent01.Result));
+
+            //길드정보에 RequestUser에서 빼고 GuildCrew로 넣고 업데이트
+            Task<GuildInfo> GuildInfo = MySQLController.Instance.SelectGuildInfo(GuildUID);
+            GuildInfo.ContinueWith((antecedent02) =>
+            {
+                for (int i = 0; i < antecedent02.Result.guildRequest.Count; i++)//해당 유저 요청삭제
+                {
+                    if (antecedent02.Result.guildRequest[i].UserUID == antecedent01.Result.UserUID)
+                    {
+                        antecedent02.Result.guildRequest.RemoveAt(i);
+                    }
+                }
+                GuildCrew guildCrew = new GuildCrew();
+                guildCrew.crewUid = antecedent01.Result.UserUID;
+                guildCrew.crewName = antecedent01.Result.UserName;
+
+                antecedent02.Result.guildCrews.Add(guildCrew);
+
+                Task.Run(() => MySQLController.Instance.UpdateGuild(GuildUID, antecedent02.Result));
+
+                //client에게 guild정보 다시알려주기
+
+                string jsonguildInfo = JsonConvert.SerializeObject(antecedent02.Result);
+
+                int length = 0x01 + Utils.GetLength(jsonguildInfo);
+
+                var sendData = new Packet();
+
+                sendData.push((byte)Protocol.Guild);
+                sendData.push(length);
+                sendData.push((byte)GuildProtocol.RequestJoinOK);
+                sendData.push(jsonguildInfo);
+
+                ClientController.Instance.SendToClient(clientSocket, sendData);
+            });
+
+        });
     }
     private void GuildFindWithName(Socket clientSocket, byte[] data)
     {

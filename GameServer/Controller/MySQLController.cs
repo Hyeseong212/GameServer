@@ -382,6 +382,47 @@ internal class MySQLController
         }
     }
     /// <summary>
+    /// 길드UID로 길드정보 업데이트
+    /// </summary>
+    /// <param name="guildUID"></param>
+    /// <param name="guildInfo"></param>
+    /// <returns></returns>
+    public async Task<bool> UpdateGuild(long guildUID, GuildInfo guildInfo)
+    {
+        // 길드를 업데이트하는 쿼리
+        string updateGuildQuery = @"
+    UPDATE mygamedb.guildtable 
+    SET Guild_Name = @GuildName, 
+        Guild_crews = @GuildCrews, 
+        Guild_leader = @GuildLeader, 
+        Guild_JoinRequestUser = @GuildJoinRequestUser 
+    WHERE Guild_uid = @GuildUid";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync();
+
+            // 길드 정보를 JSON으로 직렬화
+            string guildCrewsJson = JsonConvert.SerializeObject(guildInfo.guildCrews);
+            string joinGuildRequestJson = JsonConvert.SerializeObject(guildInfo.guildRequest);
+
+            using (MySqlCommand updateCmd = new MySqlCommand(updateGuildQuery, dbconn))
+            {
+                updateCmd.Parameters.AddWithValue("@GuildUid", guildUID);
+                updateCmd.Parameters.AddWithValue("@GuildName", guildInfo.guildName);
+                updateCmd.Parameters.AddWithValue("@GuildCrews", guildCrewsJson);
+                updateCmd.Parameters.AddWithValue("@GuildLeader", guildInfo.guildLeader);
+                updateCmd.Parameters.AddWithValue("@GuildJoinRequestUser", joinGuildRequestJson);
+
+                int affectedRows = await updateCmd.ExecuteNonQueryAsync();
+
+                // 업데이트가 성공하여 하나 이상의 행이 영향을 받았다면 true를 반환
+                return affectedRows > 0;
+            }
+        }
+    }
+
+    /// <summary>
     /// userUID를 받아서 받은 userEntity로 Update쿼리 날리기
     /// </summary>
     /// <param name="guildName"></param>

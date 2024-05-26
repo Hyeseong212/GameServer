@@ -49,7 +49,11 @@ public enum GuildProtocol
     ///<summary>
     ///길드 가입요청 유저들관련 프로토콜
     ///</summary>
-    RequestJoinUsers = 0x06
+    RequestJoinUsers = 0x06,
+    ///<summary>
+    ///길드 가입요청 수락 프로토콜
+    ///</summary>
+    RequestJoinOK = 0x07
 }
 public enum ChatStatus
 {
