@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.32, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.36, for Win64 (x86_64)
 --
--- Host: 192.168.123.1    Database: mygamedb
+-- Host: 192.168.219.100    Database: mygamedb
 -- ------------------------------------------------------
--- Server version	5.7.41-log
+-- Server version	8.0.37
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -23,15 +23,15 @@ DROP TABLE IF EXISTS `usertable`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usertable` (
-  `UserUID` bigint(20) NOT NULL,
-  `UserName` varchar(45) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `UserID` varchar(45) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `UserPW` varchar(45) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `GuildUID` bigint(20) DEFAULT NULL,
+  `UserUID` bigint NOT NULL,
+  `UserName` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `UserID` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `UserPW` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `GuildUID` bigint DEFAULT NULL,
   PRIMARY KEY (`UserUID`),
   UNIQUE KEY `UserUID` (`UserUID`),
   KEY `idx_userid` (`UserID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -40,7 +40,7 @@ CREATE TABLE `usertable` (
 
 LOCK TABLES `usertable` WRITE;
 /*!40000 ALTER TABLE `usertable` DISABLE KEYS */;
-INSERT INTO `usertable` VALUES (638506276349467624,'홍길동','netrohong','Sjh011009!',638514038234632057),(638506276349467625,'서혜성','netrogold','Sjh011009!',638514038234632057),(638509662287620699,'123','123','123',638514038234632057),(638509662749372671,'서재홍','netrosjh','Sjh011009!',0),(638509663228088539,'장두','Rbiotech','1507',638515000213264767),(638509666362017807,'새로운사람','new','new',0);
+INSERT INTO `usertable` VALUES (638506276349467624,'홍길동','netrohong','Sjh011009!',638515768135603410),(638506276349467625,'서혜성','netrogold','Sjh011009!',638515768135603410),(638509662287620699,'123','123','123',0),(638509662749372671,'서재홍','netrosjh','Sjh011009!',638515768135603410),(638509663228088539,'장두','Rbiotech','1507',638515768135603410),(638509666362017807,'새로운사람','new','new',0);
 /*!40000 ALTER TABLE `usertable` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -53,4 +53,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-05-17 16:16:01
+-- Dump completed on 2024-05-28  7:36:25
