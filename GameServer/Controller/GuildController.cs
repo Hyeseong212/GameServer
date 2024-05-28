@@ -78,6 +78,73 @@ internal class GuildController
             byte[] UserUid = data.Skip(1).ToArray();
             UserRequestOK(clientSocket, UserUid);
         }
+        else if (guildProtocol == GuildProtocol.GuildResign)
+        {
+            //길드UID 받아서 길드이름 조회
+            byte[] UserUid = data.Skip(1).ToArray();
+            GuildResign(clientSocket, UserUid);
+        }
+    }
+    private void GuildResign(Socket clientSocket, byte[] userUIDbyte)
+    {
+        long userUID = BitConverter.ToInt64(userUIDbyte, 0);
+
+        Task<UserEntity> checkUser = MySQLController.Instance.UserSelect(userUID);
+
+        checkUser.ContinueWith((antecedent01) =>
+        {
+            Task<GuildInfo> guildInfo = MySQLController.Instance.SelectGuildInfo(antecedent01.Result.guildUID);
+            guildInfo.ContinueWith((antecedent02) => //길드정보 업데이트
+            {
+                for (int i = 0; i < antecedent02.Result.guildCrews.Count; i++)
+                {
+                    if(antecedent02.Result.guildCrews[i].crewUid == userUID)
+                    {
+                        antecedent02.Result.guildCrews.RemoveAt(i);
+                    }
+                }
+                Task.Run(() => MySQLController.Instance.UpdateGuild(antecedent02.Result.guildUid, antecedent02.Result));
+
+            });
+
+
+            antecedent01.Result.guildUID = 0;
+
+            Task<bool> UpdateUser = MySQLController.Instance.UpdateUserInfo(antecedent01.Result.UserUID, antecedent01.Result);
+            UpdateUser.ContinueWith((antecedent03) =>
+            {
+                if (antecedent03.Result)
+                {
+                    Task<UserEntity> checkUser2 = MySQLController.Instance.UserSelect(userUID);
+
+                    int length = 0x01 + 0x01;
+
+                    var sendData = new Packet();
+
+                    sendData.push((byte)Protocol.Guild);
+                    sendData.push(length);
+                    sendData.push((byte)GuildProtocol.GuildResign);
+                    sendData.push((byte)ResponseType.Success);
+
+                    ClientController.Instance.SendToClient(clientSocket, sendData);
+                }
+                else
+                {
+                    Task<UserEntity> checkUser2 = MySQLController.Instance.UserSelect(userUID);
+
+                    int length = 0x01 + 0x01;
+
+                    var sendData = new Packet();
+
+                    sendData.push((byte)Protocol.Guild);
+                    sendData.push(length);
+                    sendData.push((byte)GuildProtocol.GuildResign);
+                    sendData.push((byte)ResponseType.Fail);
+
+                    ClientController.Instance.SendToClient(clientSocket, sendData);
+                }
+            });
+        });
     }
     private void UserRequestOK(Socket clientSocket, byte[] userUidbyte)
     {

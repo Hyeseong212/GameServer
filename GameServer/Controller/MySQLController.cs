@@ -36,8 +36,13 @@ internal class MySQLController
     private StringBuilder sBuilder;
     private MySqlConnection dbconn;
 
+<<<<<<< Updated upstream
     private string dbIP = "192.168.123.1";
     //private string dbIP = "192.168.219.100";
+=======
+    //private string dbIP = "192.168.123.1";
+    private string dbIP = "127.0.0.1";
+>>>>>>> Stashed changes
 
     private string connStr;
 
