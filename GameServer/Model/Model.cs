@@ -91,26 +91,27 @@ public class GuildSession
         signupRequests = new List<UserEntity>();
     }
 }
-
+public enum Tier
+{
+    UNRANKED,
+    BRONZE,
+    SILVER,
+    GOLD,
+    PLATINUM,
+    DIAMOND
+}
 public class RatingRange
 {
-    public static readonly float BRONZE_MAX = 1000.0f;
-    public static readonly float SILVER_MIN = 1000.0f;
-    public static readonly float SILVER_MAX = 1500.0f;
-    public static readonly float GOLD_MIN = 1500.0f;
-    public static readonly float GOLD_MAX = 2000.0f;
-    public static readonly float PLATINUM_MIN = 2000.0f;
-    public static readonly float PLATINUM_MAX = 2500.0f;
-    public static readonly float DIAMOND_MIN = 2500.0f;
+    static readonly float BRONZE_MAX = 1000.0f;
+    static readonly float SILVER_MIN = 1000.0f;
+    static readonly float SILVER_MAX = 1500.0f;
+    static readonly float GOLD_MIN = 1500.0f;
+    static readonly float GOLD_MAX = 2000.0f;
+    static readonly float PLATINUM_MIN = 2000.0f;
+    static readonly float PLATINUM_MAX = 2500.0f;
+    static readonly float DIAMOND_MIN = 2500.0f;
 
-    public enum Tier
-    {
-        BRONZE,
-        SILVER,
-        GOLD,
-        PLATINUM,
-        DIAMOND
-    }
+
 
     public static Tier GetTier(float rating)
     {
@@ -138,5 +139,28 @@ public class RatingRange
         {
             throw new ArgumentException("Invalid rating: " + rating);
         }
+    }
+}
+public class PlayerInfo
+{
+    public long UserUID;
+    public float rating;
+    public Socket Socket;
+
+    public PlayerInfo()
+    {
+        UserUID = 0;
+        rating = 0;
+        Socket = null;
+    }
+}
+public class PlayerRating
+{
+    public long UserUID;
+    public float rating;
+    public PlayerRating()
+    {
+        UserUID = 0;
+        rating = 0;
     }
 }

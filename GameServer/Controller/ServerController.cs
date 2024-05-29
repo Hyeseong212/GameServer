@@ -46,7 +46,6 @@ class ServerController
         ClientController.Instance.Init();
         GuildController.Instance.Init();
         LoginController.Instance.Init();
-        TierController.Instance.Init();
         MatchController.Instance.Init();
         MySQLController.Instance.Init();
 
@@ -172,6 +171,7 @@ class ServerController
                 GuildController.Instance.ProcessGuildPacket(clientSocket, realData);
                 break;
             case (byte)Protocol.Match:
+                MatchController.Instance.ProcessMatchPacket(clientSocket, realData);
                 break;
             default:
                 break;

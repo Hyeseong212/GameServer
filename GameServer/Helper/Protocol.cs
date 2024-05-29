@@ -104,7 +104,18 @@ public enum LoginRequestType
     UpdateRequest = 0x04,
 
 }
+public enum MatchProtocol
+{
+    MatchStart,
+    MatchStop
+}
 
+public enum GameType
+{
+    Default,
+    Normal,
+    Rank,
+}
 public enum ResponseType
 {
     Success = 0x00,

@@ -21,9 +21,9 @@ public class CThread
     }
 
     // 스레드 생성 함수
-    public bool Create(string name)
+    public bool Create(string? name)
     {
-        Console.WriteLine(name + "Created");
+        Console.WriteLine(name + "Thread Created");
         ThreadName = name;
         try
         {

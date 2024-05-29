@@ -37,8 +37,8 @@ internal class MySQLController
     private MySqlConnection dbconn;
 
     //private string dbIP = "192.168.219.100";
-    private string dbIP = "192.168.123.1";
-    //private string dbIP = "127.0.0.1";
+    //private string dbIP = "192.168.123.1";
+    private string dbIP = "127.0.0.1";
 
     private string connStr;
 
@@ -120,6 +120,49 @@ internal class MySQLController
         }
         return row;
     }
+    public async Task<PlayerRating> SelectPlayerRating(long UserUID)
+    {
+        var row = new PlayerRating();
+        string query = @"
+        SELECT `UserUID`,
+               `UserRating`
+        FROM `mygamedb`.`userrating`
+        WHERE `UserUID` = @UserUID";
+
+        using (MySqlConnection dbconn = new MySqlConnection(connStr))
+        {
+            await dbconn.OpenAsync(); // 비동기적으로 연결을 엽니다.
+
+            try
+            {
+                MySqlCommand command = new MySqlCommand(query, dbconn);
+                command.Parameters.AddWithValue("@UserUID", UserUID); // 매개변수 추가
+
+                using (var reader = await command.ExecuteReaderAsync()) // 비동기적으로 데이터를 읽어옵니다.
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        row.UserUID = reader.GetInt64("UserUID");
+                        if (!reader.IsDBNull(reader.GetOrdinal("UserRating")))
+                        {
+                            row.rating = reader.GetInt32("UserRating");
+                        }
+                        else
+                        {
+                            row.rating = 0; // UserRating이 NULL인 경우
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                // 로그를 기록하거나 추가적인 예외 처리를 여기에 작성할 수 있습니다.
+            }
+        }
+        return row;
+    }
+
     public async Task<UserEntity> CheckUserIdInDatabase(string userId)
     {
         var row = new UserEntity();
