@@ -39,7 +39,7 @@ CREATE TABLE `guildtable` (
 
 LOCK TABLES `guildtable` WRITE;
 /*!40000 ALTER TABLE `guildtable` DISABLE KEYS */;
-INSERT INTO `guildtable` VALUES (638515768135603410,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"},{\"crewUid\":638509663228088539,\"crewName\":\"장두\"},{\"crewUid\":638506276349467624,\"crewName\":\"홍길동\"},{\"crewUid\":638509662749372671,\"crewName\":\"서재홍\"}]',638506276349467625,'[]');
+INSERT INTO `guildtable` VALUES (638515768135603410,'123','[{\"crewUid\":638506276349467625,\"crewName\":\"서혜성\"}]',638506276349467625,'[]');
 /*!40000 ALTER TABLE `guildtable` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -52,4 +52,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-05-28  7:36:25
+-- Dump completed on 2024-05-29 20:50:47
