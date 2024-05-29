@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class MatchController
+internal class TierController
 {
-    private static MatchController instance;
-    public static MatchController Instance
+    private static TierController instance;
+    public static TierController Instance
     {
         get
         {
@@ -15,7 +15,7 @@ internal class MatchController
             {
                 if (instance == null)
                 {
-                    instance = new MatchController();
+                    instance = new TierController();
                 }
             }
             return instance;
@@ -23,7 +23,7 @@ internal class MatchController
         }
     }
 
-
+    RatingRange ratingRange = new RatingRange();
     public void Init()
     {
         Console.WriteLine($"{this.ToString()} init Complete");

@@ -44,8 +44,15 @@ class ServerController
     {
         ChatController.Instance.Init();
         ClientController.Instance.Init();
+        GuildController.Instance.Init();
+        LoginController.Instance.Init();
+        TierController.Instance.Init();
+        MatchController.Instance.Init();
         MySQLController.Instance.Init();
-        Console.WriteLine("Server is listening...");
+
+        //모든 컨트롤러 이니셜라이징 작업
+
+        Console.WriteLine("\r\nServer is listening...");
         Accept();
         Console.ReadLine();
     }

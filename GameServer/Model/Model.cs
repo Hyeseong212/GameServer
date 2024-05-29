@@ -91,3 +91,52 @@ public class GuildSession
         signupRequests = new List<UserEntity>();
     }
 }
+
+public class RatingRange
+{
+    public static readonly float BRONZE_MAX = 1000.0f;
+    public static readonly float SILVER_MIN = 1000.0f;
+    public static readonly float SILVER_MAX = 1500.0f;
+    public static readonly float GOLD_MIN = 1500.0f;
+    public static readonly float GOLD_MAX = 2000.0f;
+    public static readonly float PLATINUM_MIN = 2000.0f;
+    public static readonly float PLATINUM_MAX = 2500.0f;
+    public static readonly float DIAMOND_MIN = 2500.0f;
+
+    public enum Tier
+    {
+        BRONZE,
+        SILVER,
+        GOLD,
+        PLATINUM,
+        DIAMOND
+    }
+
+    public static Tier GetTier(float rating)
+    {
+        if (rating < BRONZE_MAX)
+        {
+            return Tier.BRONZE;
+        }
+        else if (rating >= SILVER_MIN && rating < SILVER_MAX)
+        {
+            return Tier.SILVER;
+        }
+        else if (rating >= GOLD_MIN && rating < GOLD_MAX)
+        {
+            return Tier.GOLD;
+        }
+        else if (rating >= PLATINUM_MIN && rating < PLATINUM_MAX)
+        {
+            return Tier.PLATINUM;
+        }
+        else if (rating >= DIAMOND_MIN)
+        {
+            return Tier.DIAMOND;
+        }
+        else
+        {
+            throw new ArgumentException("Invalid rating: " + rating);
+        }
+    }
+}
