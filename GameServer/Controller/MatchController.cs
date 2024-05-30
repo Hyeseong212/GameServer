@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using GameServer.Controller;
+using System.Net.Sockets;
 
 internal class MatchController
 {
@@ -14,7 +15,7 @@ internal class MatchController
         protected override void ThreadUpdate()
         {
             matchController.TryMatchNormalQueue();
-
+            matchController.TryMatchRankQueue();
             Thread.Sleep(50);
         }
     }
@@ -38,6 +39,7 @@ internal class MatchController
     RatingRange ratingRange = new RatingRange();
 
     private Queue<PlayerInfo> normalQueue;
+    private Dictionary<Tier, Queue<PlayerInfo>> rankQueues;
     private const int MatchSize = 2; // 매칭에 필요한 최소 플레이어 수 (예: 2명)
 
     public MatchThread matchThread;
@@ -46,6 +48,11 @@ internal class MatchController
     {
         Console.WriteLine($"{this.ToString()} init Complete");
         normalQueue = new Queue<PlayerInfo>();
+        rankQueues = new Dictionary<Tier, Queue<PlayerInfo>>();
+        foreach (Tier tier in Enum.GetValues(typeof(Tier)))
+        {
+            rankQueues[tier] = new Queue<PlayerInfo>();
+        }
         matchThread = new MatchThread(this);
         matchThread.Create(this.ToString());
     }
@@ -77,7 +84,13 @@ internal class MatchController
             else if (data[1] == (byte)GameType.Rank)
             {
                 byte[] UserUid = data.Skip(2).ToArray();
+                DeleteUserRankQueue(clientSocket, UserUid);
             }
+        }
+        else if ((data[0] == (byte)MatchProtocol.GameAccept))
+        {
+            byte[] UserUid = data.Skip(1).ToArray();
+            Console.WriteLine($"{ BitConverter.ToInt64(UserUid)} accept Match");
         }
     }
     private void DeleteUserNormalQueue(Socket clientSocket, byte[] data)
@@ -123,10 +136,6 @@ internal class MatchController
         });
     }
 
-    private void InsertUserRankQueue(Socket clientSocket, byte[] data)
-    {
-        long userUID = BitConverter.ToInt64(data, 0);
-    }
     public void TryMatchNormalQueue()
     {
         lock (normalQueue)
@@ -143,26 +152,104 @@ internal class MatchController
                 foreach (var player in matchedPlayers)
                 {
                     Console.WriteLine($"User {player.UserUID} matched.");
+                    Console.WriteLine("!!노말 게임 매칭됨!!");
                     // 매칭된 플레이어에게 응답 보내기
                     SendMatchResponse(player.Socket, matchedPlayers);
                 }
             }
         }
     }
+    private void InsertUserRankQueue(Socket clientSocket, byte[] data)
+    {
+        long userUID = BitConverter.ToInt64(data, 0);
 
+        Task<PlayerRating> playerInfoTask = MySQLController.Instance.SelectPlayerRating(userUID);
+
+        playerInfoTask.ContinueWith((task) =>
+        {
+            PlayerRating playerRating = task.Result;
+            PlayerInfo playerInfo = new PlayerInfo
+            {
+                UserUID = userUID,
+                rating = playerRating.rating,
+                Socket = clientSocket
+            };
+
+            Tier tier = RatingRange.GetTier(playerInfo.rating);
+            lock (rankQueues[tier])
+            {
+                rankQueues[tier].Enqueue(playerInfo);
+            }
+
+            Console.WriteLine($"User {userUID} added to {tier} rank queue.");
+        });
+    }
+    private void DeleteUserRankQueue(Socket clientSocket, byte[] data)
+    {
+        long userUID = BitConverter.ToInt64(data, 0);
+
+        foreach (var queue in rankQueues.Values)
+        {
+            lock (queue)
+            {
+                var tempQueue = new Queue<PlayerInfo>();
+                while (queue.Count > 0)
+                {
+                    var playerInfo = queue.Dequeue();
+                    if (playerInfo.UserUID != userUID)
+                    {
+                        tempQueue.Enqueue(playerInfo);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"User {userUID} removed from rank queue.");
+                    }
+                }
+
+                while (tempQueue.Count > 0)
+                {
+                    queue.Enqueue(tempQueue.Dequeue());
+                }
+            }
+        }
+    }
+    public void TryMatchRankQueue()
+    {
+        foreach (var tierQueue in rankQueues)
+        {
+            lock (tierQueue.Value)
+            {
+                if (tierQueue.Value.Count >= MatchSize)
+                {
+                    List<PlayerInfo> matchedPlayers = new List<PlayerInfo>();
+                    for (int i = 0; i < MatchSize; i++)
+                    {
+                        matchedPlayers.Add(tierQueue.Value.Dequeue());
+                    }
+
+                    Console.WriteLine($"Match found in {tierQueue.Key} tier:");
+                    foreach (var player in matchedPlayers)
+                    {
+                        Console.WriteLine($"User {player.UserUID} matched.");
+                        Console.WriteLine("!!랭크 게임 매칭됨!!");
+                        // 매칭된 플레이어에게 응답 보내기
+                        SendMatchResponse(player.Socket, matchedPlayers);
+                    }
+                }
+            }
+        }
+    }
 
     private void SendMatchResponse(Socket clientSocket, List<PlayerInfo> matchedPlayers)
     {
-        Console.WriteLine("!!매칭됨!!");
-        //// 응답 데이터 생성 (예시)
-        //byte[] responseData = new byte[matchedPlayers.Count * 8];
-        //for (int i = 0; i < matchedPlayers.Count; i++)
-        //{
-        //    byte[] uidBytes = BitConverter.GetBytes(matchedPlayers[i].UserUID);
-        //    Array.Copy(uidBytes, 0, responseData, i * 8, 8);
-        //}
+        Packet packet = new Packet();
 
-        //// 비동기로 클라이언트 소켓에 응답 전송
-        //clientSocket.Send(responseData);
+        int length = 0x01;
+
+        packet.push((byte)Protocol.Match);
+        packet.push(length);
+        packet.push((byte)MatchProtocol.GameMatched);
+
+        ClientController.Instance.SendToClient(clientSocket, packet);
     }
 }

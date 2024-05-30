@@ -106,8 +106,10 @@ public enum LoginRequestType
 }
 public enum MatchProtocol
 {
-    MatchStart,
-    MatchStop
+    MatchStart = 0x00,
+    MatchStop = 0x01,
+    GameAccept = 0x02,
+    GameMatched = 0x03,
 }
 
 public enum GameType
