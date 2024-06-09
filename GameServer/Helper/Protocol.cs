@@ -15,7 +15,8 @@
     ///<summary>
     ///매칭 서버 관련 요청 패킷
     ///</summary>
-    Match = 0x32
+    Match = 0x32,
+
 }
 public enum GuildProtocol
 {
@@ -118,8 +119,13 @@ public enum GameType
     Normal,
     Rank,
 }
+
 public enum ResponseType
 {
     Success = 0x00,
     Fail = 0x01,
+}
+public enum InGameProtocol
+{
+    CharacterTr = 0x01,
 }
