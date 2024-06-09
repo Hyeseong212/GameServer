@@ -9,18 +9,18 @@ using System.Threading;
 internal class InGameSession
 {
     public long SessionId { get; private set; }
+    public GameType GameType { get; private set; }
     private List<PlayerInfo> users;
-    private Socket listenSocket;
     private bool isRunning;
     private Thread sessionThread;
     private SemaphoreSlim maxConnectionsSemaphore = new SemaphoreSlim(2); // 세션 당 최대 연결 수
     private ConcurrentQueue<SocketAsyncEventArgs> eventArgsPool = new ConcurrentQueue<SocketAsyncEventArgs>();
 
-    public InGameSession(long sessionId)
+    public InGameSession(long sessionId, GameType gameType)
     {
         SessionId = sessionId;
+        GameType = gameType;
         users = new List<PlayerInfo>();
-        listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
         // SocketAsyncEventArgs 초기화
         for (int i = 0; i < 100; i++)
@@ -36,9 +36,7 @@ internal class InGameSession
     public void StartSession()
     {
         isRunning = true;
-        listenSocket.Bind(new IPEndPoint(IPAddress.Any, 0)); // 임의의 포트 사용
-        listenSocket.Listen(100);
-        Console.WriteLine($"Session {SessionId} started on port {(listenSocket.LocalEndPoint as IPEndPoint).Port}");
+        Console.WriteLine($"Session {SessionId} started.");
 
         // 리스닝 및 업데이트를 하나의 쓰레드에서 처리
         sessionThread = new Thread(RunSession);
@@ -48,7 +46,6 @@ internal class InGameSession
     public void StopSession()
     {
         isRunning = false;
-        listenSocket.Close();
         Console.WriteLine($"Session {SessionId} stopped.");
     }
 
@@ -56,13 +53,21 @@ internal class InGameSession
     {
         users.Add(player);
         Console.WriteLine($"Player {player.UserUID} added to session {SessionId}");
+
+        // 클라이언트 소켓을 인게임 세션으로 넘기고, ReceiveAsync를 호출하여 인게임 세션에서 패킷을 받도록 함
+        SocketAsyncEventArgs receiveEventArg = new SocketAsyncEventArgs();
+        receiveEventArg.UserToken = player.Socket;
+        receiveEventArg.SetBuffer(new byte[1024], 0, 1024);
+        receiveEventArg.Completed += IO_Completed;
+
+        if (!player.Socket.ReceiveAsync(receiveEventArg))
+        {
+            IO_Completed(this, receiveEventArg);
+        }
     }
 
     private void RunSession()
     {
-        // 비동기 소켓 연결 수락 시작
-        Accept();
-
         // 20Hz 업데이트 타이머
         Timer updateTimer = new Timer(UpdateGameWorld, null, 0, 50); // 50ms 간격으로 업데이트 (20Hz)
 
@@ -72,44 +77,6 @@ internal class InGameSession
         }
 
         updateTimer.Dispose();
-    }
-
-    private void Accept()
-    {
-        SocketAsyncEventArgs acceptEventArg = new SocketAsyncEventArgs();
-        acceptEventArg.Completed += AcceptCompleted;
-
-        if (!listenSocket.AcceptAsync(acceptEventArg))
-        {
-            AcceptCompleted(this, acceptEventArg);
-        }
-    }
-
-    private void AcceptCompleted(object sender, SocketAsyncEventArgs e)
-    {
-        if (e.SocketError == SocketError.Success)
-        {
-            Socket clientSocket = e.AcceptSocket;
-            Console.WriteLine($"Client connected to session {SessionId}: {clientSocket.RemoteEndPoint}");
-
-            maxConnectionsSemaphore.Wait();
-
-            if (eventArgsPool.TryDequeue(out SocketAsyncEventArgs receiveEventArg))
-            {
-                receiveEventArg.UserToken = clientSocket;
-
-                if (!clientSocket.ReceiveAsync(receiveEventArg))
-                {
-                    IO_Completed(this, receiveEventArg);
-                }
-            }
-        }
-
-        e.AcceptSocket = null;
-        if (isRunning)
-        {
-            Accept();
-        }
     }
 
     public void IO_Completed(object sender, SocketAsyncEventArgs e)
@@ -146,10 +113,10 @@ internal class InGameSession
         }
     }
 
-    private void HandlePacket(Socket clientSocket, byte[] buffer, int offset, int count)
+    public void HandlePacket(Socket clientSocket, byte[] buffer, int offset, int count)
     {
         // 패킷 처리 로직 추가
-        Console.WriteLine($"Received data from client: {BitConverter.ToString(buffer, offset, count)}");
+        Console.WriteLine($"Received data from client in session {SessionId}: {BitConverter.ToString(buffer, offset, count)}");
     }
 
     private void RemoveClient(Socket clientSocket)
@@ -174,6 +141,6 @@ internal class InGameSession
             // NetworkStream.Write 등을 이용하여 데이터 전송 로직 추가
         }
 
-        Console.WriteLine($"Session {SessionId} world updated.");
+        // Console.WriteLine($"Session {SessionId} world updated.");
     }
 }

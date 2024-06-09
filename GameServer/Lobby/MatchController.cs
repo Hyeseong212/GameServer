@@ -40,7 +40,9 @@ internal class MatchController
 
     private Queue<PlayerInfo> normalQueue;
     private Dictionary<Tier, Queue<PlayerInfo>> rankQueues;
-    private const int MatchSize = 2; // 매칭에 필요한 최소 플레이어 수 (예: 2명)
+    private const int MatchSize = 1; // 매칭에 필요한 최소 플레이어 수 (예: 2명)
+    private Dictionary<long, List<PlayerInfo>> pendingMatches = new Dictionary<long, List<PlayerInfo>>();
+    private Dictionary<long, GameType> matchTypes = new Dictionary<long, GameType>();
 
     public MatchThread matchThread;
 
@@ -89,7 +91,25 @@ internal class MatchController
         else if ((data[0] == (byte)MatchProtocol.GameAccept))
         {
             byte[] UserUid = data.Skip(1).ToArray();
-            Console.WriteLine($"{BitConverter.ToInt64(UserUid)} accept Match");
+            HandleGameAccept(clientSocket, BitConverter.ToInt64(UserUid));
+        }
+    }
+
+    private void HandleGameAccept(Socket clientSocket, long userUid)
+    {
+        foreach (var match in pendingMatches)
+        {
+            var players = match.Value;
+            var player = players.FirstOrDefault(p => p.UserUID == userUid);
+            if (player != null)
+            {
+                player.HasAccepted = true;
+                if (players.All(p => p.HasAccepted))
+                {
+                    StartGameSession(match.Key, players, matchTypes[match.Key]);
+                }
+                break;
+            }
         }
     }
 
@@ -146,25 +166,28 @@ internal class MatchController
         {
             if (normalQueue.Count >= MatchSize)
             {
-                List<PlayerInfo> matchedPlayers = new List<PlayerInfo>();
+                long matchId = DateTime.Now.Ticks;
+                pendingMatches[matchId] = new List<PlayerInfo>();
+
                 for (int i = 0; i < MatchSize; i++)
                 {
-                    matchedPlayers.Add(normalQueue.Dequeue());
+                    pendingMatches[matchId].Add(normalQueue.Dequeue());
                 }
 
+                matchTypes[matchId] = GameType.Normal;
+
                 Console.WriteLine("Match found:");
-                foreach (var player in matchedPlayers)
+                foreach (var player in pendingMatches[matchId])
                 {
                     Console.WriteLine($"User {player.UserUID} matched.");
                 }
 
                 // 매칭된 플레이어들에게 응답을 보내고 게임 세션 생성
-                foreach (var player in matchedPlayers)
+                foreach (var player in pendingMatches[matchId])
                 {
                     Console.WriteLine("!!노말 게임 매칭됨!!");
-                    SendMatchResponse(player.Socket, matchedPlayers);
+                    SendMatchResponse(player.Socket);
                 }
-                GameMatched(matchedPlayers, GameType.Normal);
             }
         }
     }
@@ -233,31 +256,34 @@ internal class MatchController
             {
                 if (tierQueue.Value.Count >= MatchSize)
                 {
-                    List<PlayerInfo> matchedPlayers = new List<PlayerInfo>();
+                    long matchId = DateTime.Now.Ticks;
+                    pendingMatches[matchId] = new List<PlayerInfo>();
+
                     for (int i = 0; i < MatchSize; i++)
                     {
-                        matchedPlayers.Add(tierQueue.Value.Dequeue());
+                        pendingMatches[matchId].Add(tierQueue.Value.Dequeue());
                     }
 
+                    matchTypes[matchId] = GameType.Rank;
+
                     Console.WriteLine($"Match found in {tierQueue.Key} tier:");
-                    foreach (var player in matchedPlayers)
+                    foreach (var player in pendingMatches[matchId])
                     {
                         Console.WriteLine($"User {player.UserUID} matched.");
                     }
 
-                    // 매칭된 플레이어들에게 응답을 보내고 게임 세션 생성
-                    foreach (var player in matchedPlayers)
+                    // 매칭된 플레이어들에게 응답을 보냄
+                    foreach (var player in pendingMatches[matchId])
                     {
                         Console.WriteLine("!!랭크 게임 매칭됨!!");
-                        SendMatchResponse(player.Socket, matchedPlayers);
+                        SendMatchResponse(player.Socket);
                     }
-                    GameMatched(matchedPlayers, GameType.Rank);
                 }
             }
         }
     }
 
-    private void SendMatchResponse(Socket clientSocket, List<PlayerInfo> matchedPlayers)
+    private void SendMatchResponse(Socket clientSocket)
     {
         Packet packet = new Packet();
 
@@ -270,11 +296,13 @@ internal class MatchController
         ClientController.Instance.SendToClient(clientSocket, packet);
     }
 
-    private void GameMatched(List<PlayerInfo> matchedPlayers, GameType gameType)
+    private void StartGameSession(long matchId, List<PlayerInfo> matchedPlayers, GameType gameType)
     {
         // 새로운 인게임 세션 생성 및 매칭된 플레이어 추가
         SessionManager.Instance.InGameSessionCreate(matchedPlayers, gameType);
-
+        // 매칭 완료 후 pendingMatches에서 해당 매칭 제거
+        pendingMatches.Remove(matchId);
+        matchTypes.Remove(matchId);
     }
 }
 

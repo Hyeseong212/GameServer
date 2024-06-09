@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 internal class SessionManager
 {
@@ -26,7 +27,7 @@ internal class SessionManager
     public void InGameSessionCreate(List<PlayerInfo> users, GameType gameType)
     {
         long sessionId = DateTime.Now.Ticks;
-        InGameSession newSession = new InGameSession(sessionId);
+        InGameSession newSession = new InGameSession(sessionId, gameType);
         createdSessions.TryAdd(sessionId, newSession);
 
         // 새로운 세션 시작
@@ -34,10 +35,10 @@ internal class SessionManager
 
         foreach (var player in users)
         {
-            newSession.AddPlayer(users);
+            newSession.AddPlayer(player);
         }
 
-        Console.WriteLine("In-game session created for matched players.");
+        Console.WriteLine($"In-game session created for matched players. GameType: {gameType}");
     }
 
     public InGameSession GetSession(long sessionId)

@@ -141,19 +141,14 @@ public class RatingRange
         }
     }
 }
-public class PlayerInfo
+internal class PlayerInfo
 {
-    public long UserUID;
-    public float rating;
-    public Socket Socket;
-
-    public PlayerInfo()
-    {
-        UserUID = 0;
-        rating = 0;
-        Socket = null;
-    }
+    public long UserUID { get; set; }
+    public float rating { get; set; }
+    public Socket Socket { get; set; }
+    public bool HasAccepted { get; set; } = false;
 }
+
 public class PlayerRating
 {
     public long UserUID;

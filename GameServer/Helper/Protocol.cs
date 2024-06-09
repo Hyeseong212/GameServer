@@ -16,7 +16,7 @@
     ///매칭 서버 관련 요청 패킷
     ///</summary>
     Match = 0x32,
-
+    Test = 0x33,
 }
 public enum GuildProtocol
 {
@@ -111,6 +111,7 @@ public enum MatchProtocol
     MatchStop = 0x01,
     GameAccept = 0x02,
     GameMatched = 0x03,
+    GameTestMatched = 0x04,
 }
 
 public enum GameType
