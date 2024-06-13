@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 
 internal class InGameSession
@@ -15,6 +14,7 @@ internal class InGameSession
     private Thread sessionThread;
     private SemaphoreSlim maxConnectionsSemaphore = new SemaphoreSlim(2); // 세션 당 최대 연결 수
     private ConcurrentQueue<SocketAsyncEventArgs> eventArgsPool = new ConcurrentQueue<SocketAsyncEventArgs>();
+    private ManualResetEvent sessionEndedEvent = new ManualResetEvent(false);
 
     public InGameSession(long sessionId, GameType gameType)
     {
@@ -36,6 +36,7 @@ internal class InGameSession
     public void StartSession()
     {
         isRunning = true;
+        sessionEndedEvent.Reset();
         Console.WriteLine($"Session {SessionId} started.");
 
         // 리스닝 및 업데이트를 하나의 쓰레드에서 처리
@@ -46,7 +47,9 @@ internal class InGameSession
     public void StopSession()
     {
         isRunning = false;
+        sessionEndedEvent.Set();
         Console.WriteLine($"Session {SessionId} stopped.");
+        sessionThread.Join(); // 스레드 종료 대기
     }
 
     public void AddPlayer(PlayerInfo player)
@@ -71,11 +74,10 @@ internal class InGameSession
         // 20Hz 업데이트 타이머
         Timer updateTimer = new Timer(UpdateGameWorld, null, 0, 50); // 50ms 간격으로 업데이트 (20Hz)
 
-        while (isRunning)
-        {
-            Thread.Sleep(100); // 쓰레드 과부하 방지를 위해 잠시 대기
-        }
+        // 세션이 종료될 때까지 대기
+        sessionEndedEvent.WaitOne();
 
+        // 세션 종료 시 타이머 정리
         updateTimer.Dispose();
     }
 
