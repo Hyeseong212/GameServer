@@ -24,7 +24,7 @@ internal class SessionManager
         Console.WriteLine($"{this.ToString()} init Complete");
     }
 
-    public void InGameSessionCreate(List<PlayerInfo> users, GameType gameType)
+    public InGameSession InGameSessionCreate(List<PlayerInfo> users, GameType gameType)
     {
         long sessionId = DateTime.Now.Ticks;
         InGameSession newSession = new InGameSession(sessionId, gameType);
@@ -39,6 +39,8 @@ internal class SessionManager
         }
 
         Console.WriteLine($"In-game session created for matched players. GameType: {gameType}");
+
+        return newSession;
     }
 
     public InGameSession GetSession(long sessionId)
@@ -49,4 +51,6 @@ internal class SessionManager
         }
         return null;
     }
+
+
 }

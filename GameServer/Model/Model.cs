@@ -159,3 +159,14 @@ public class PlayerRating
         rating = 0;
     }
 }
+//인게임관련 여기에 접속한 플레이어정보 기입 
+public class InGamePlayerInfo
+{
+    public long userUID;
+    public int playerNumber;
+    public bool isConnected;
+    public InGamePlayerInfo()
+    {
+        isConnected = false;
+    }
+}

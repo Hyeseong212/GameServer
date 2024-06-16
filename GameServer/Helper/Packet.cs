@@ -100,4 +100,10 @@ public class Packet
         temp_buffer.CopyTo(this.buffer, this.position);
         this.position += temp_buffer.Length;
     }
+    public void push(byte[] data)
+    {
+        data.CopyTo(this.buffer, this.position);
+        this.position += data.Length;
+        this.size += data.Length;
+    }
 }

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Net;
 
 internal class MatchController
 {
@@ -93,6 +94,7 @@ internal class MatchController
             byte[] UserUid = data.Skip(1).ToArray();
             HandleGameAccept(clientSocket, BitConverter.ToInt64(UserUid));
         }
+
     }
 
     private void HandleGameAccept(Socket clientSocket, long userUid)
@@ -106,12 +108,17 @@ internal class MatchController
                 player.HasAccepted = true;
                 if (players.All(p => p.HasAccepted))
                 {
-                    StartGameSession(match.Key, players, matchTypes[match.Key]);
+                    var gameSession = StartGameSession(match.Key, players, matchTypes[match.Key]);
+                    foreach (var matchedPlayer in players)
+                    {
+                        SendGameRoomIP(matchedPlayer.Socket, gameSession.GameRoomEndPoint);
+                    }
                 }
                 break;
             }
         }
     }
+
 
     private void DeleteUserNormalQueue(Socket clientSocket, byte[] data)
     {
@@ -295,14 +302,43 @@ internal class MatchController
 
         ClientController.Instance.SendToClient(clientSocket, packet);
     }
-
-    private void StartGameSession(long matchId, List<PlayerInfo> matchedPlayers, GameType gameType)
+    private void SendGameRoomIP(Socket clientSocket, IPEndPoint gameRoomEndPoint)
     {
-        // 새로운 인게임 세션 생성 및 매칭된 플레이어 추가
-        SessionManager.Instance.InGameSessionCreate(matchedPlayers, gameType);
+        Packet packet = new Packet();
+
+        int length = 0x01 + 0x04 + 0x04;
+
+        packet.push((byte)Protocol.Match);
+        packet.push(length); // Protocol byte + IP address length (4 bytes) + port length (2 bytes)
+        packet.push((byte)MatchProtocol.GameRoomIP);
+
+        byte[] ipBytes = gameRoomEndPoint.Address.GetAddressBytes();
+        packet.push(ipBytes);
+
+        byte[] portBytes = BitConverter.GetBytes(gameRoomEndPoint.Port); // Port는 2 bytes
+        packet.push(gameRoomEndPoint.Port);
+
+        ClientController.Instance.SendToClient(clientSocket, packet);
+    }
+
+
+    private InGameSession StartGameSession(long matchId, List<PlayerInfo> matchedPlayers, GameType gameType)
+    {
+        var gameSession = SessionManager.Instance.InGameSessionCreate(matchedPlayers, gameType);
+
+        // 메인 서버에서 해당 소켓을 해제하고 인게임 세션으로 전달
+        foreach (var player in matchedPlayers)
+        {
+            ServerController.Instance.TransferSocketToGameSession(player.Socket);
+        }
+
         // 매칭 완료 후 pendingMatches에서 해당 매칭 제거
         pendingMatches.Remove(matchId);
         matchTypes.Remove(matchId);
+
+        return gameSession;
     }
+
+
 }
 

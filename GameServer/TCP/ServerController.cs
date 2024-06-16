@@ -183,4 +183,8 @@ class ServerController
         maxConnectionsSemaphore.Release();
         ClientController.Instance.eventArgsPool.Enqueue(e);
     }
+    public void TransferSocketToGameSession(Socket clientSocket)
+    {
+
+    }
 }
