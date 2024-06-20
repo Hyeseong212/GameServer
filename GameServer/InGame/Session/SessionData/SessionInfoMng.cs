@@ -20,23 +20,31 @@ internal class SessionInfoMng
     {
         if ((SessionInfo)realData[0] == SessionInfo.SessionSyncOK)
         {
-            CheckAllPlayerSyncOK(realData);
+            CheckAllPlayerSyncOK(realData, client);
         }
         else if ((SessionInfo)realData[0] == SessionInfo.PlayerNum)
         {
             SendPlayerNumber(realData, client);
         }
     }
-    private void CheckAllPlayerSyncOK(byte[] userUid)
+    private void CheckAllPlayerSyncOK(byte[] userUid, Socket client)
     {
         long Useruid = BitConverter.ToInt64(userUid.Skip(1).ToArray());
-        for (int i = 0; i < inGamePlayerInfos.Count; i++)
+
+        // InGamePlayerInfo에서 해당 플레이어 찾기
+        var inGamePlayerInfo = inGamePlayerInfos.FirstOrDefault(p => p.userUID == Useruid);
+        if (inGamePlayerInfo != null)
         {
-            if (inGamePlayerInfos[i].userUID == Useruid)
-            {
-                inGamePlayerInfos[i].isConnected = true;
-            }
+            inGamePlayerInfo.isConnected = true;
         }
+
+        // PlayerInfo에서 해당 플레이어의 소켓 업데이트
+        var playerInfo = m_inGameSession.users.FirstOrDefault(p => p.UserUID == Useruid);
+        if (playerInfo != null)
+        {
+            playerInfo.Socket = client;
+        }
+
         // 여기에 모든 플레이어가 모두 연결되었는지 체크하는 로직
         bool allPlayersConnected = true;
         for (int i = 0; i < inGamePlayerInfos.Count; i++)

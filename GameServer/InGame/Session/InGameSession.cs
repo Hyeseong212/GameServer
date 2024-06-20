@@ -11,7 +11,7 @@ internal class InGameSession
     public long SessionId { get; private set; }
     public GameType GameType { get; private set; }
     public IPEndPoint GameRoomEndPoint { get; private set; }
-    private List<PlayerInfo> users;//접속한 플레이어관리
+    public List<PlayerInfo> users;//접속한 플레이어관리
     private Socket listenSocket;
     private bool isRunning;
     private Thread sessionThread;
@@ -80,7 +80,7 @@ internal class InGameSession
 
         InGamePlayerInfo inGamePlayerInfo = new InGamePlayerInfo();
         inGamePlayerInfo.userUID = player.UserUID;
-        inGamePlayerInfo.playerNumber = sessionInfoMng.inGamePlayerInfos.Count;
+        inGamePlayerInfo.playerNumber = sessionInfoMng.inGamePlayerInfos.Count + 1;
         sessionInfoMng.inGamePlayerInfos.Add(inGamePlayerInfo);
 
         //Console.WriteLine($"Player {player.UserUID} added to session {SessionId}");
@@ -224,7 +224,7 @@ internal class InGameSession
         switch (protocol)
         {
             case (byte)InGameProtocol.SessionInfo:
-                sessionInfoMng.ProcessSessionInfoPacket(realData);
+                sessionInfoMng.ProcessSessionInfoPacket(realData, clientSocket);
                 break;
             case (byte)InGameProtocol.CharacterTr:
                 world.UpdatePlayerTR(realData);
@@ -271,7 +271,7 @@ internal class InGameSession
                 if (user.UserUID != otherUser.uid)
                 {
                     // 위치와 회전 데이터를 패킷에 추가
-                    
+
                     characterTR.push(otherUser.uid);
                     characterTR.push(otherUser.m_position.X);
                     characterTR.push(otherUser.m_position.Y);

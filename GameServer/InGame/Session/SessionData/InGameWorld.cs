@@ -26,7 +26,7 @@ internal class InGameWorld
                 usersCharacter[i].m_quaternion = new Quaternion(BitConverter.ToSingle(data, 20), BitConverter.ToSingle(data, 24), BitConverter.ToSingle(data, 28), BitConverter.ToSingle(data, 32));
 
                 // 위치 로그 출력
-                //Console.WriteLine($"User {usersCharacter[i].uid} Position: X={usersCharacter[i].m_position.X}, Y={usersCharacter[i].m_position.Y}, Z={usersCharacter[i].m_position.Z}");
+                Console.WriteLine($"User {usersCharacter[i].uid} Position: X={usersCharacter[i].m_position.X}, Y={usersCharacter[i].m_position.Y}, Z={usersCharacter[i].m_position.Z}");
                 //Console.WriteLine($"User {usersCharacter[i].uid} Rotation: X={usersCharacter[i].m_quaternion.x}, Y={usersCharacter[i].m_quaternion.y}, Z={usersCharacter[i].m_quaternion.z}, W={usersCharacter[i].m_quaternion.w}");
             }
         }
