@@ -22,7 +22,6 @@ namespace GameServer.Controller
                 return instance;
             }
         }
-        public ConcurrentQueue<SocketAsyncEventArgs> eventArgsPool = new ConcurrentQueue<SocketAsyncEventArgs>();
         public ConcurrentDictionary<UserEntity, Socket> connectedClients = new ConcurrentDictionary<UserEntity, Socket>();
         
         public void Init()
@@ -75,7 +74,7 @@ namespace GameServer.Controller
 
         public void SendToClient(Socket clientSocket, Packet packet)
         {
-            if (eventArgsPool.TryDequeue(out SocketAsyncEventArgs sendEventArg))
+            if (ServerController.Instance.eventArgsPool.TryDequeue(out SocketAsyncEventArgs sendEventArg))
             {
                 sendEventArg.SetBuffer(packet.buffer, 0, packet.position);
                 sendEventArg.UserToken = clientSocket;

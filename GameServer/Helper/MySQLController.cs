@@ -50,7 +50,6 @@ internal class MySQLController
         var port = "3306";
         var id = "root";
         var pwd = "1234";
-        //connStr = string.Format("Server={0};Port={1};Database=Mobility;Uid={2};Pwd={3};charset=utf8;SSL Mode=Required", ip, port, id, pwd);
         connStr = string.Format("Server={0};Port={1};Database=MyGameDB;Uid={2};Pwd={3};charset=utf8", ip, port, id, pwd);
         dbconn = new MySqlConnection(connStr);
     }

@@ -9,6 +9,7 @@ using System.Threading;
 internal class InGameSession
 {
     public long SessionId { get; private set; }
+
     public GameType GameType { get; private set; }
     public IPEndPoint GameRoomEndPoint { get; private set; }
     public List<PlayerInfo> users;//접속한 플레이어관리
@@ -20,6 +21,7 @@ internal class InGameSession
     private ManualResetEvent sessionEndedEvent = new ManualResetEvent(false);
     private InGameWorld world;//인게임 세계 객체
     private SessionInfoMng sessionInfoMng;
+
 
     public InGameSession(long sessionId, GameType gameType)
     {
@@ -35,7 +37,7 @@ internal class InGameSession
         {
             SocketAsyncEventArgs eventArg = new SocketAsyncEventArgs();
             eventArg.Completed += IO_Completed;
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[4096];
             eventArg.SetBuffer(buffer, 0, buffer.Length);
             eventArgsPool.Enqueue(eventArg);
         }
@@ -73,15 +75,16 @@ internal class InGameSession
     {
         users.Add(player);
 
-        Character character = new Character();
-        character.uid = player.UserUID;
-
-        world.usersCharacter.Add(character);
-
         InGamePlayerInfo inGamePlayerInfo = new InGamePlayerInfo();
         inGamePlayerInfo.userUID = player.UserUID;
         inGamePlayerInfo.playerNumber = sessionInfoMng.inGamePlayerInfos.Count + 1;
         sessionInfoMng.inGamePlayerInfos.Add(inGamePlayerInfo);
+
+        Character character = new Character();
+        character.uid = player.UserUID;
+        character.playerNum = inGamePlayerInfo.playerNumber;
+        world.usersCharacter.Add(character);
+
 
         //Console.WriteLine($"Player {player.UserUID} added to session {SessionId}");
 
@@ -103,7 +106,7 @@ internal class InGameSession
         Accept();
 
         // 20Hz 업데이트 타이머
-        Timer updateTimer = new Timer(UpdateGameWorld, null, 0, 50); // 50ms 간격으로 업데이트 (20Hz)
+        Timer updateTimer = new Timer(UpdateGameWorld, null, 0, 25); // 50ms 간격으로 업데이트 (20Hz)
 
         // 세션이 종료될 때까지 대기
         sessionEndedEvent.WaitOne();
@@ -179,10 +182,16 @@ internal class InGameSession
         }
         else if (e.LastOperation == SocketAsyncOperation.Send)
         {
-            if (e.SocketError != SocketError.Success)
+            if (e.SocketError == SocketError.Success)
             {
-                Console.WriteLine("Error while sending data.");
-                //clientSocket.Close();
+                // 전송 성공 후 추가 작업 가능
+
+                // 이벤트 인스턴스를 다시 풀에 반환
+                ReleaseEventArgs(e);
+            }
+            else
+            {
+                // 전송 실패 처리
                 RemoveClient(clientSocket);
                 ReleaseEventArgs(e);
             }
@@ -237,7 +246,12 @@ internal class InGameSession
     private void RemoveClient(Socket clientSocket)
     {
         // 소켓이 닫히기 전에 EndPoint를 저장
-        string clientEndPoint = clientSocket.RemoteEndPoint.ToString();
+        if(clientSocket == null)
+        {
+            return;
+        }
+
+        //string clientEndPoint = clientSocket.RemoteEndPoint?.ToString();
 
         // 소켓 닫기
         clientSocket.Close();
@@ -245,8 +259,13 @@ internal class InGameSession
         // 사용자 리스트에서 제거
         users.RemoveAll(user => user.Socket == clientSocket);
 
+        if(users.Count <= 0 )
+        {
+            SessionManager.Instance.RemoveSession(this.SessionId);
+        }
+
         // 로그 출력
-        Console.WriteLine($"Client removed from session {SessionId}: {clientEndPoint}");
+        //Console.WriteLine($"Client removed from session {SessionId}: {clientEndPoint}");
     }
 
     private void ReleaseEventArgs(SocketAsyncEventArgs e)
@@ -262,28 +281,35 @@ internal class InGameSession
     }
     private void UpdateCharacterTR()
     {
-        foreach (var user in users)
+        if (sessionInfoMng.isAllPlayerReady)
         {
-            Packet characterTR = new Packet();
+            //모든유저가 완료되었을때실행
 
-            foreach (var otherUser in world.usersCharacter)
+            foreach (var user in world.usersCharacter)
             {
-                if (user.UserUID != otherUser.uid)
-                {
-                    // 위치와 회전 데이터를 패킷에 추가
+                Packet characterTR = new Packet();
+                // 위치와 회전 데이터를 패킷에 추가
 
-                    characterTR.push(otherUser.uid);
-                    characterTR.push(otherUser.m_position.X);
-                    characterTR.push(otherUser.m_position.Y);
-                    characterTR.push(otherUser.m_position.Z);
-                    characterTR.push(otherUser.m_quaternion.X);
-                    characterTR.push(otherUser.m_quaternion.Y);
-                    characterTR.push(otherUser.m_quaternion.Z);
-                    characterTR.push(otherUser.m_quaternion.W);
-                }
+                int length = 0x01 + Utils.GetLength(user.uid) + Utils.GetLength(user.playerNum) + 
+                    Utils.GetLength(user.m_position.X) + Utils.GetLength(user.m_position.Y) + Utils.GetLength(user.m_position.Z) + 
+                    Utils.GetLength(user.m_quaternion.X) + Utils.GetLength(user.m_quaternion.Y) + Utils.GetLength(user.m_quaternion.Z) + Utils.GetLength(user.m_quaternion.W);
+                characterTR.push((byte)InGameProtocol.CharacterTr);
+                characterTR.push(length);
+                characterTR.push((byte)SessionInfo.TransformInfo);
+                characterTR.push(user.uid);
+                characterTR.push(user.playerNum);
+                characterTR.push(user.m_position.X);
+                characterTR.push(user.m_position.Y);
+                characterTR.push(user.m_position.Z);
+                characterTR.push(user.m_quaternion.X);
+                characterTR.push(user.m_quaternion.Y);
+                characterTR.push(user.m_quaternion.Z);
+                characterTR.push(user.m_quaternion.W);
+                SendToAllClient(characterTR);
+
+                //Console.WriteLine($"User {user.uid} Position: X={user.m_position.X}, Y={user.m_position.Y}, Z={user.m_position.Z}");
             }
             // 클라이언트에 데이터 전송
-            SendToClient(user.Socket, characterTR);
         }
     }
 
@@ -299,6 +325,30 @@ internal class InGameSession
         }
         throw new Exception("No network adapters with an IPv4 address in the system!");
     }
+    //public void SendToClient(Socket clientSocket, Packet packet)
+    //{
+    //    SocketAsyncEventArgs sendEventArg;
+    //    if (!eventArgsPool.TryDequeue(out sendEventArg))
+    //    {
+    //        // 풀에 사용 가능한 EventArgs가 없을 경우 새로 생성
+    //        sendEventArg = new SocketAsyncEventArgs();
+    //        sendEventArg.Completed += IO_Completed;
+    //        sendEventArg.SetBuffer(new byte[4096], 0, 4096); // 또는 필요한 버퍼 크기 설정
+    //    }
+
+    //    sendEventArg.SetBuffer(packet.buffer, 0, packet.position);
+    //    sendEventArg.UserToken = clientSocket;
+
+    //    if (!clientSocket.SendAsync(sendEventArg))
+    //    {
+    //        IO_Completed(this, sendEventArg);
+    //    }
+    //    else
+    //    {
+    //        // 비동기 전송 시작이 성공적으로 이루어진 경우
+    //        Console.WriteLine("Data sent asynchronously.");
+    //    }
+    //}
     public void SendToClient(Socket clientSocket, Packet packet)
     {
         if (eventArgsPool.TryDequeue(out SocketAsyncEventArgs sendEventArg))
@@ -308,7 +358,7 @@ internal class InGameSession
 
             if (!clientSocket.SendAsync(sendEventArg))
             {
-                ServerController.Instance.IO_Completed(this, sendEventArg);
+                IO_Completed(this, sendEventArg);
             }
         }
     }

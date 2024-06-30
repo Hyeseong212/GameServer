@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mysqlx.Crud;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
@@ -51,6 +52,15 @@ internal class SessionManager
         }
         return null;
     }
-
-
+    public bool RemoveSession(long sessionId)
+    {
+        if (createdSessions.TryRemove(sessionId, out InGameSession session))
+        {
+            session = null; // 세션을 완전히 제거
+            Console.WriteLine($"Session with ID {sessionId} has been removed.");
+            return true;
+        }
+        Console.WriteLine($"Session with ID {sessionId} not found.");
+        return false;
+    }
 }

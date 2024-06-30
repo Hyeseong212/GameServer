@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 internal class SessionInfoMng
 {
     public InGameSession m_inGameSession;
+    public bool isAllPlayerReady;
     public List<InGamePlayerInfo> inGamePlayerInfos;
     public SessionInfoMng(InGameSession inGameSession)
     {
@@ -71,6 +72,8 @@ internal class SessionInfoMng
         packet.push((byte)InGameProtocol.SessionInfo);
         packet.push(length);
         packet.push((byte)SessionInfo.SessionSyncOK);
+
+        isAllPlayerReady = true;
 
         m_inGameSession.SendToAllClient(packet);
     }

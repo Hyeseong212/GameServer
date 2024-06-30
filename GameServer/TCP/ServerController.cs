@@ -1,4 +1,5 @@
 ﻿using GameServer.Controller;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
@@ -21,6 +22,7 @@ class ServerController
     private const int maxConnections = 1000;
     private int activeConnections = 0;
 
+    public ConcurrentQueue<SocketAsyncEventArgs> eventArgsPool = new ConcurrentQueue<SocketAsyncEventArgs>();
     private SemaphoreSlim maxConnectionsSemaphore = new SemaphoreSlim(maxConnections);
 
 
@@ -36,7 +38,7 @@ class ServerController
             eventArg.Completed += IO_Completed;
             byte[] buffer = new byte[Packet.buffersize];
             eventArg.SetBuffer(buffer, 0, buffer.Length);
-            ClientController.Instance.eventArgsPool.Enqueue(eventArg);
+            eventArgsPool.Enqueue(eventArg);
         }
     }
 
@@ -77,7 +79,7 @@ class ServerController
             Interlocked.Increment(ref activeConnections);
             maxConnectionsSemaphore.Wait();
 
-            if (ClientController.Instance.eventArgsPool.TryDequeue(out SocketAsyncEventArgs receiveEventArg))
+            if (eventArgsPool.TryDequeue(out SocketAsyncEventArgs receiveEventArg))
             {
                 receiveEventArg.UserToken = clientSocket;
 
@@ -116,9 +118,16 @@ class ServerController
         }
         else if (e.LastOperation == SocketAsyncOperation.Send)
         {
-            if (e.SocketError != SocketError.Success)
+            if (e.SocketError == SocketError.Success)
             {
-                Console.WriteLine("Error while sending data.");
+                // 전송 성공 후 추가 작업 가능
+
+                // 이벤트 인스턴스를 다시 풀에 반환
+                ReleaseEventArgs(e);
+            }
+            else
+            {
+                // 전송 실패 처리
                 clientSocket.Close();
                 ClientController.Instance.RemoveClient(clientSocket);
                 ReleaseEventArgs(e);
@@ -181,7 +190,7 @@ class ServerController
     {
         e.UserToken = null;
         maxConnectionsSemaphore.Release();
-        ClientController.Instance.eventArgsPool.Enqueue(e);
+        eventArgsPool.Enqueue(e);
     }
     public void TransferSocketToGameSession(Socket clientSocket)
     {

@@ -3,6 +3,7 @@
 internal class Character
 {
     public long uid;//사용하는 유저
+    public int playerNum;
     public string characterName;//어떤캐릭터인지
     public float HP;//캐릭터 HP
     public float MP;//캐릭터 MP
@@ -13,6 +14,7 @@ internal class Character
     public Character()
     {
         uid = 0;
+        playerNum = -1;
         characterName = "";
         HP = 0;
         MP = 0;

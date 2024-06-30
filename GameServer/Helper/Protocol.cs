@@ -139,4 +139,5 @@ public enum SessionInfo
 {
     SessionSyncOK = 0x00,
     PlayerNum = 0x01,
+    TransformInfo = 0x02
 }

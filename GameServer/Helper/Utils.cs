@@ -6,6 +6,10 @@ internal class Utils
     {
         return BitConverter.GetBytes(data).Length;
     }
+    public static int GetLength(float data)
+    {
+        return BitConverter.GetBytes(data).Length;
+    }
     public static int GetLength(string data)
     {
         return Encoding.UTF8.GetBytes(data).Length;
